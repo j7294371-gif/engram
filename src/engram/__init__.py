@@ -18,11 +18,15 @@ from engram.agent_memory import AgentMemory
 from engram.config import Config
 from engram.memory.item import MemoryItem
 from engram.memory.enums import MemoryType, ConsolidationStage, RetrievalMode
+from engram.consolidation.sleep import ConsolidationReport
+from engram.emotion.tag import EmotionalTagger
 
 __version__ = "0.1.0a1"
 __all__ = [
     "AgentMemory",
     "Config",
+    "ConsolidationReport",
+    "EmotionalTagger",
     "MemoryItem",
     "MemoryType",
     "ConsolidationStage",

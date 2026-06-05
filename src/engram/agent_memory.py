@@ -20,6 +20,8 @@ from engram.memory.item import MemoryItem
 from engram.pipeline.long_term_memory import LongTermMemory
 from engram.pipeline.sensory_buffer import SensoryBuffer
 from engram.pipeline.working_memory import WorkingMemory
+from engram.consolidation.sleep import SleepConsolidation, ConsolidationReport
+from engram.retrieval.hybrid import HybridRanker
 from engram.storage import StorageBackend, get_backend, register_backend, list_backends
 from engram.storage.in_memory import InMemoryBackend
 
@@ -73,6 +75,21 @@ class AgentMemory:
         self._working = WorkingMemory(
             capacity=self._config.working_memory_capacity,
             on_evict=self._on_working_evict,
+        )
+
+        # Hybrid ranker (semantic + associative + importance fusion)
+        self._ranker = HybridRanker(
+            semantic_weight=self._config.hybrid_semantic_weight,
+            associative_weight=self._config.hybrid_associative_weight,
+            importance_weight=self._config.hybrid_importance_weight,
+        )
+
+        # Sleep consolidation engine
+        self._consolidator = SleepConsolidation(
+            backend=self._backend,
+            promotion_importance_threshold=self._config.promotion_importance_threshold,
+            abstraction_min_sources=self._config.abstraction_min_sources,
+            forgetting_threshold=self._config.forgetting_threshold,
         )
 
     # ──────────────────────────────────────────────────────────────
@@ -163,7 +180,9 @@ class AgentMemory:
     ) -> List[MemoryItem]:
         """Retrieve memories relevant to the query.
 
-        Uses hybrid retrieval across all active pipeline stages.
+        Uses hybrid retrieval across all active pipeline stages,
+        fusing semantic similarity, spreading activation, and
+        importance scoring via the HybridRanker.
 
         Args:
             query: Natural language query. If None, returns recent items.
@@ -189,6 +208,14 @@ class AgentMemory:
                 memory_types = [memory_types]
             type_filter = [MT(t) for t in memory_types]
 
+        # Compute query embedding if we have a real embedding provider
+        query_embedding: Optional[List[float]] = None
+        if query and not isinstance(self._embedding, NoopEmbeddingProvider):
+            try:
+                query_embedding = self._embedding.sync_embed(query)
+            except Exception:
+                query_embedding = None
+
         results: List[MemoryItem] = []
 
         # Collect from each active pipeline stage
@@ -208,13 +235,13 @@ class AgentMemory:
             ltm_results = asyncio.run(
                 self._ltm.search(
                     query=query or "",
+                    query_embedding=query_embedding,
                     memory_types=type_filter,
-                    limit=limit,
+                    limit=limit * 2,  # fetch more for re-ranking
                     threshold=threshold,
                 )
             )
         except RuntimeError:
-            # Already in an event loop — this is best-effort
             ltm_results = []
 
         # Apply archived filter
@@ -224,33 +251,51 @@ class AgentMemory:
                 if i.consolidation_stage != ConsolidationStage.ARCHIVED
             ]
 
-        results.extend(ltm_results)
+        # Merge all results
+        seen_ids: set[str] = set()
+        for i in results:
+            seen_ids.add(i.id)
+        for i in ltm_results:
+            if i.id not in seen_ids:
+                results.append(i)
+                seen_ids.add(i.id)
 
-        # Apply mood-congruent bias if requested
-        if mood_congruent and len(results) > 1:
-            target_valence, target_arousal = mood_congruent
-            results.sort(
-                key=lambda i: (
-                    i.retrieval_probability()
-                    + self._config.mood_congruent_bias
-                    * i.emotional_congruence(target_valence, target_arousal)
-                ),
-                reverse=True,
-            )
-        else:
-            # Sort by retrieval probability (forgetting curve)
-            results.sort(key=lambda i: i.retrieval_probability(), reverse=True)
+        # Compute spreading activation scores from top results
+        activation_scores: Optional[Dict[str, float]] = None
+        if results and len(results) > 1:
+            top_ids = [r.id for r in results[:min(3, len(results))]]
+            try:
+                activation_scores = {}
+                for sid in top_ids:
+                    assoc = asyncio.run(
+                        self._backend.get_associated(sid, max_depth=2, min_strength=0.1)
+                    )
+                    for aid, activation in assoc.items():
+                        activation_scores[aid] = max(
+                            activation_scores.get(aid, 0.0), activation
+                        )
+            except RuntimeError:
+                activation_scores = None
 
-        # Deduplicate by ID
-        seen: set[str] = set()
-        deduped: List[MemoryItem] = []
-        for item in results:
+        # Hybrid re-ranking
+        ranked = self._ranker.rank(
+            items=results,
+            query=query,
+            query_embedding=query_embedding,
+            activation_scores=activation_scores,
+            mood_congruent=mood_congruent,
+        )
+
+        # Deduplicate and touch
+        final: List[MemoryItem] = []
+        seen = set()
+        for item, _ in ranked:
             if item.id not in seen:
                 seen.add(item.id)
-                deduped.append(item)
                 item.touch()
+                final.append(item)
 
-        return deduped[:limit]
+        return final[:limit]
 
     def get_context(self, window_size: int = 7, *, include_sensory: bool = False) -> List[MemoryItem]:
         """Get the current working memory context for LLM consumption.
@@ -525,6 +570,33 @@ class AgentMemory:
 
         report["forgotten_count"] = len(decaying)
         return report
+
+    def consolidate_sleep(self) -> ConsolidationReport:
+        """Run a full sleep consolidation cycle.
+
+        This is the advanced consolidation pipeline:
+        1. Working → Episodic promotion (high-importance items)
+        2. Episodic → Semantic abstraction (topic clustering)
+        3. Procedural pattern extraction (repeated sequences)
+        4. Forgetting curve archiving
+        5. Strength reinforcement (frequently accessed memories)
+
+        Returns:
+            A ConsolidationReport with detailed actions taken.
+        """
+        import asyncio
+        try:
+            working_items = self._working.get_context(
+                window_size=self._config.working_memory_capacity
+            )
+            report = asyncio.run(
+                self._consolidator.run(working_items=working_items)
+            )
+            return report
+        except RuntimeError:
+            return ConsolidationReport(
+                errors=["Could not run sleep consolidation in current event loop"]
+            )
 
     def stats(self) -> Dict[str, Any]:
         """Return system statistics."""

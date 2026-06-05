@@ -150,16 +150,17 @@ memory = AgentMemory(backend="chromadb")
 
 ## 📖 Documentation
 
-Full documentation is at [engram-memory.dev](https://engram-memory.dev).
+Full documentation is available on [GitHub](https://github.com/j7294371-gif/engram).
 
-- [Getting Started](https://engram-memory.dev/getting-started)
-- [Memory Pipeline Guide](https://engram-memory.dev/guides/memory-pipeline)
-- [Forgetting Curve](https://engram-memory.dev/guides/forgetting-curve)
-- [Consolidation](https://engram-memory.dev/guides/consolidation)
-- [Emotional Tagging](https://engram-memory.dev/guides/emotional-tagging)
-- [Associative Retrieval](https://engram-memory.dev/guides/associative-retrieval)
-- [Backend Guide](https://engram-memory.dev/guides/backend-guide)
-- [API Reference](https://engram-memory.dev/api)
+- [Getting Started](https://github.com/j7294371-gif/engram#-quick-start)
+- [Memory Pipeline Guide](src/engram/pipeline/)
+- [Forgetting Curve](src/engram/memory/decay.py)
+- [Consolidation](src/engram/consolidation/sleep.py)
+- [Emotional Tagging](src/engram/emotion/tag.py)
+- [Associative Retrieval](src/engram/retrieval/)
+- [Backend Guide](src/engram/storage/)
+- [API Reference](src/engram/agent_memory.py)
+- [Examples](examples/)
 
 ## 🧪 Testing
 

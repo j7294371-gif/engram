@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 keywords = ["memory", "ai-agent", "llm", "biomimetic", "forgetting-curve", "semantic-search"]
 
 authors = [
-    {name = "engram-memory", email = "team@engram-memory.dev"},
+    {name = "j7294371-gif", email = "j7294371@gmail.com"},
 ]
 
 classifiers = [
@@ -59,7 +59,7 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/engram-memory/engram"
 Repository = "https://github.com/engram-memory/engram"
-Documentation = "https://engram-memory.dev"
+Documentation = "https://github.com/j7294371-gif/engram"
 
 [tool.setuptools.packages.find]
 where = ["src"]

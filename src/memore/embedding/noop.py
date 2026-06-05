@@ -16,8 +16,8 @@ class NoopEmbeddingProvider(EmbeddingProvider):
     def dimension(self) -> int:
         return 0
 
-    async def embed(self, text: str) -> list[float]:
+    def embed(self, text: str) -> list[float]:
         return []
 
-    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
         return [[] for _ in texts]

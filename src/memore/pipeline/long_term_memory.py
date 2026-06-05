@@ -7,6 +7,9 @@ StorageBackend and adds pipeline-specific logic on top.
 
 from __future__ import annotations
 
+import dataclasses
+import secrets
+import time
 from collections.abc import Callable
 
 from memore.memory.enums import ConsolidationStage, MemoryType
@@ -40,7 +43,7 @@ class LongTermMemory:
 
     # ── Store ────────────────────────────────────────────────────
 
-    async def store(self, item: MemoryItem) -> str:
+    def store(self, item: MemoryItem) -> str:
         """Store a long-term memory item.
 
         If the memory type is not managed by long-term memory
@@ -51,21 +54,21 @@ class LongTermMemory:
                 f"LongTermMemory only manages {[t.value for t in self.MANAGED_TYPES]}, "
                 f"got {item.memory_type.value!r}"
             )
-        return await self._backend.store(item)
+        return self._backend.store(item)
 
-    async def batch_store(self, items: list[MemoryItem]) -> None:
+    def batch_store(self, items: list[MemoryItem]) -> None:
         """Bulk store multiple long-term items."""
         valid = [i for i in items if i.memory_type in self.MANAGED_TYPES]
         if valid:
-            await self._backend.batch_store(valid)
+            self._backend.batch_store(valid)
 
     # ── Retrieve ─────────────────────────────────────────────────
 
-    async def get(self, memory_id: str) -> MemoryItem | None:
+    def get(self, memory_id: str) -> MemoryItem | None:
         """Retrieve a single memory by ID."""
-        return await self._backend.get(memory_id)
+        return self._backend.get(memory_id)
 
-    async def search(
+    def search(
         self,
         query: str,
         query_embedding: list[float] | None = None,
@@ -82,7 +85,7 @@ class LongTermMemory:
         else:
             memory_types = [t for t in memory_types if t in self.MANAGED_TYPES]
 
-        return await self._backend.search(
+        return self._backend.search(
             query=query,
             query_embedding=query_embedding,
             memory_types=memory_types,
@@ -93,49 +96,47 @@ class LongTermMemory:
 
     # ── Type-specific helpers ────────────────────────────────────
 
-    async def store_episodic(self, item: MemoryItem) -> str:
+    def store_episodic(self, item: MemoryItem) -> str:
         """Store an episodic (event/experience) memory."""
-        item.memory_type = MemoryType.EPISODIC
-        return await self.store(item)
+        copy = dataclasses.replace(item, memory_type=MemoryType.EPISODIC)
+        return self.store(copy)
 
-    async def store_semantic(self, item: MemoryItem) -> str:
+    def store_semantic(self, item: MemoryItem) -> str:
         """Store a semantic (fact/knowledge) memory."""
-        item.memory_type = MemoryType.SEMANTIC
-        return await self.store(item)
+        copy = dataclasses.replace(item, memory_type=MemoryType.SEMANTIC)
+        return self.store(copy)
 
-    async def store_procedural(self, item: MemoryItem) -> str:
+    def store_procedural(self, item: MemoryItem) -> str:
         """Store a procedural (skill/pattern) memory."""
-        item.memory_type = MemoryType.PROCEDURAL
-        return await self.store(item)
+        copy = dataclasses.replace(item, memory_type=MemoryType.PROCEDURAL)
+        return self.store(copy)
 
     # ── Consolidation support ────────────────────────────────────
 
-    async def promote_from_working(self, item: MemoryItem) -> str:
+    def promote_from_working(self, item: MemoryItem) -> str:
         """Promote a working memory item to episodic storage.
 
         Called during consolidation when a working memory item
         exceeds the importance threshold.
         """
-        item.memory_type = MemoryType.EPISODIC
-        item.consolidation_stage = ConsolidationStage.WORKING_PROMOTED
-        item.promoted_from = item.id
-        item.importance = item.recompute_importance()
+        promoted = MemoryItem(
+            id=f"ep_{int(time.time() * 1000):x}_{secrets.token_hex(6)}",
+            content=item.content,
+            memory_type=MemoryType.EPISODIC,
+            consolidation_stage=ConsolidationStage.WORKING_PROMOTED,
+            promoted_from=item.id,
+            importance=item.recompute_importance(),
+        )
 
-        # Assign a new ID for the episodic copy
-        import secrets
-        import time
-
-        item.id = f"ep_{int(time.time() * 1000):x}_{secrets.token_hex(6)}"
-
-        mid = await self._backend.store(item)
+        mid = self._backend.store(promoted)
         if self._on_promote:
-            self._on_promote(item)
+            self._on_promote(promoted)
         return mid
 
-    async def update(self, item: MemoryItem) -> None:
+    def update(self, item: MemoryItem) -> None:
         """Update an existing long-term memory item."""
-        await self._backend.update(item)
+        self._backend.update(item)
 
-    async def stats(self) -> dict:
+    def stats(self) -> dict:
         """Return storage statistics."""
-        return await self._backend.stats()
+        return self._backend.stats()

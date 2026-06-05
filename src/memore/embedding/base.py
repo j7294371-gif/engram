@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from abc import ABC, abstractmethod
 
 
@@ -19,25 +18,17 @@ class EmbeddingProvider(ABC):
         """Return the embedding vector dimension."""
 
     @abstractmethod
-    async def embed(self, text: str) -> list[float]:
+    def embed(self, text: str) -> list[float]:
         """Generate an embedding vector for the given text."""
 
     @abstractmethod
-    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Generate embedding vectors for a batch of texts."""
 
     def sync_embed(self, text: str) -> list[float]:
         """Synchronous embedding fallback.
 
-        Default implementation runs embed() in an event loop.
+        Default implementation delegates to embed().
         Providers with native sync support should override this.
         """
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
-        if loop is not None and loop.is_running():
-            # We're already in an async context — create a new loop
-            return asyncio.run(self.embed(text))
-        return asyncio.run(self.embed(text))
+        return self.embed(text)  # embed() is now sync too!

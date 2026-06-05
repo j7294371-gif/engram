@@ -33,13 +33,13 @@ class InMemoryBackend(StorageBackend):
 
     # ── Lifecycle ────────────────────────────────────────────────
 
-    async def initialize(self) -> None:
+    def initialize(self) -> None:
         self._items.clear()
         self._associations.clear()
         self._tags.clear()
         self._initialized = True
 
-    async def close(self) -> None:
+    def close(self) -> None:
         self._items.clear()
         self._associations.clear()
         self._tags.clear()
@@ -47,7 +47,7 @@ class InMemoryBackend(StorageBackend):
 
     # ── CRUD ─────────────────────────────────────────────────────
 
-    async def store(self, item: MemoryItem) -> str:
+    def store(self, item: MemoryItem) -> str:
         if item.id in self._items:
             raise DuplicateMemoryError(f"Memory {item.id!r} already exists.")
         self._items[item.id] = item
@@ -55,14 +55,14 @@ class InMemoryBackend(StorageBackend):
             self._tags[tag].add(item.id)
         return item.id
 
-    async def batch_store(self, items: builtins.list[MemoryItem]) -> None:
+    def batch_store(self, items: builtins.list[MemoryItem]) -> None:
         for item in items:
-            await self.store(item)
+            self.store(item)
 
-    async def get(self, memory_id: str) -> MemoryItem | None:
+    def get(self, memory_id: str) -> MemoryItem | None:
         return self._items.get(memory_id)
 
-    async def update(self, item: MemoryItem) -> None:
+    def update(self, item: MemoryItem) -> None:
         if item.id not in self._items:
             raise MemoryNotFoundError(f"Memory {item.id!r} not found.")
         # Remove old tags, add new ones
@@ -73,7 +73,7 @@ class InMemoryBackend(StorageBackend):
         for tag in item.tags:
             self._tags[tag].add(item.id)
 
-    async def delete(self, memory_id: str) -> None:
+    def delete(self, memory_id: str) -> None:
         item = self._items.pop(memory_id, None)
         if item is not None:
             for tag in item.tags:
@@ -85,7 +85,7 @@ class InMemoryBackend(StorageBackend):
 
     # ── Query ────────────────────────────────────────────────────
 
-    async def search(
+    def search(
         self,
         query: str,
         query_embedding: builtins.list[float] | None = None,
@@ -129,7 +129,7 @@ class InMemoryBackend(StorageBackend):
         results.sort(key=lambda i: i.retrieval_probability(), reverse=True)
         return results[:limit]
 
-    async def list(
+    def list(
         self,
         memory_types: Collection[MemoryType] | None = None,
         importance_min: float = 0.0,
@@ -165,17 +165,17 @@ class InMemoryBackend(StorageBackend):
 
     # ── Associations ─────────────────────────────────────────────
 
-    async def add_association(self, source_id: str, target_id: str, strength: float = 1.0) -> None:
+    def add_association(self, source_id: str, target_id: str, strength: float = 1.0) -> None:
         if source_id not in self._items:
             raise MemoryNotFoundError(f"Source memory {source_id!r} not found.")
         if target_id not in self._items:
             raise MemoryNotFoundError(f"Target memory {target_id!r} not found.")
         self._associations[source_id][target_id] = strength
 
-    async def remove_association(self, source_id: str, target_id: str) -> None:
+    def remove_association(self, source_id: str, target_id: str) -> None:
         self._associations.get(source_id, {}).pop(target_id, None)
 
-    async def get_associated(
+    def get_associated(
         self,
         memory_id: str,
         max_depth: int = 2,
@@ -206,7 +206,7 @@ class InMemoryBackend(StorageBackend):
 
     # ── Forgetting ───────────────────────────────────────────────
 
-    async def get_decaying(self, threshold: float = 0.3, limit: int = 100) -> builtins.list[MemoryItem]:
+    def get_decaying(self, threshold: float = 0.3, limit: int = 100) -> builtins.list[MemoryItem]:
         decaying = []
         for item in self._items.values():
             if item.retrieval_probability() < threshold:
@@ -216,7 +216,7 @@ class InMemoryBackend(StorageBackend):
 
     # ── Stats ────────────────────────────────────────────────────
 
-    async def stats(self) -> dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         if not self._items:
             count_by_type = {t.value: 0 for t in MemoryType}
             return {"total": 0, **count_by_type, "avg_importance": 0.0}
@@ -235,8 +235,8 @@ class InMemoryBackend(StorageBackend):
             "tags": len(self._tags),
         }
 
-    async def clear(self) -> None:
-        await self.initialize()
+    def clear(self) -> None:
+        self.initialize()
 
 
 def _keyword_score(item: MemoryItem, query: str) -> float:

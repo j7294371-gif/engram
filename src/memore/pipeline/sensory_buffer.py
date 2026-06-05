@@ -45,16 +45,16 @@ class SensoryBuffer:
 
         Evicts the oldest item if at capacity.
         """
-        self._evict_expired()
         with self._lock:
+            self._evict_expired()
             if len(self._buffer) >= self.capacity:
                 self._buffer.popitem(last=False)
             self._buffer[item.id] = (item, time.monotonic())
 
     def get(self, memory_id: str) -> MemoryItem | None:
         """Retrieve an item by ID if it hasn't expired."""
-        self._evict_expired()
         with self._lock:
+            self._evict_expired()
             entry = self._buffer.get(memory_id)
             if entry is not None:
                 return entry[0]
@@ -62,10 +62,10 @@ class SensoryBuffer:
 
     def search(self, query: str, limit: int = 10) -> list[MemoryItem]:
         """Basic keyword search over current buffer contents."""
-        self._evict_expired()
         results: list[MemoryItem] = []
         query_lower = query.lower()
         with self._lock:
+            self._evict_expired()
             for item, _ in self._buffer.values():
                 if query_lower in item.content.lower():
                     results.append(item)
@@ -75,14 +75,14 @@ class SensoryBuffer:
 
     def all(self) -> list[MemoryItem]:
         """Return all non-expired items."""
-        self._evict_expired()
         with self._lock:
+            self._evict_expired()
             return [item for item, _ in self._buffer.values()]
 
     def size(self) -> int:
         """Current number of items in the buffer."""
-        self._evict_expired()
         with self._lock:
+            self._evict_expired()
             return len(self._buffer)
 
     def clear(self) -> None:
@@ -95,12 +95,13 @@ class SensoryBuffer:
     def _evict_expired(self) -> None:
         """Remove items that have exceeded the TTL."""
         now = time.monotonic()
-        expired_ids: list[str] = []
-        with self._lock:
-            for mid, (_item, ts) in self._buffer.items():
-                if now - ts > self.ttl_seconds:
-                    expired_ids.append(mid)
-            for mid in expired_ids:
-                expired_item = self._buffer.pop(mid, None)
-                if expired_item is not None and self._on_expire:
-                    self._on_expire(expired_item[0])
+        expired: list[MemoryItem] = []
+        # Collect expired items under the lock
+        for mid, (item, ts) in list(self._buffer.items()):
+            if now - ts > self.ttl_seconds:
+                expired.append(item)
+                self._buffer.pop(mid)
+        # Fire callbacks outside the lock
+        for item in expired:
+            if self._on_expire:
+                self._on_expire(item)

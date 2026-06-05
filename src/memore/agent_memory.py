@@ -7,7 +7,6 @@ emotional tagging, and associative retrieval.
 
 from __future__ import annotations
 
-import contextlib
 import secrets
 import time
 from typing import Any
@@ -30,7 +29,7 @@ class AgentMemory:
     """Primary interface to the memore memory system.
 
     A unified facade over the three-tier biomimetic pipeline:
-    sensory ― working ― long-term (episodic / semantic / procedural).
+    sensory — working — long-term (episodic / semantic / procedural).
 
     Usage::
 
@@ -143,7 +142,7 @@ class AgentMemory:
             arousal=emotional_arousal if emotional_arousal is not None else 0.0,
             importance=importance if importance is not None else 0.5,
             associations=associations or {},
-            embedding=self._embedding.sync_embed(content) if hasattr(self._embedding, 'sync_embed') else None,
+            embedding=self._embedding.sync_embed(content),
         )
 
         # Route to the correct pipeline stage
@@ -152,19 +151,7 @@ class AgentMemory:
         elif mem_type == MemoryType.WORKING:
             self._working.add(item)
         elif mem_type in LongTermMemory.MANAGED_TYPES:
-            import asyncio
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = None
-
-            if loop and loop.is_running():
-                # We're inside an async context — schedule
-                loop.create_task(self._ltm.store(item))
-            else:
-                # Sync fallback — run in new event loop
-                import asyncio as _asyncio
-                _asyncio.run(self._ltm.store(item))
+            self._ltm.store(item)
 
         self._tick()
         return mid
@@ -233,22 +220,20 @@ class AgentMemory:
                 working_items = [i for i in working_items if query.lower() in i.content.lower()]
             results.extend(working_items)
 
-        # Long-term memory search (async → sync bridge)
-        import asyncio
+        # Long-term memory search (sync)
         try:
-            ltm_results = asyncio.run(
-                self._ltm.search(
-                    query=query or "",
-                    query_embedding=query_embedding,
-                    memory_types=type_filter,
-                    limit=limit * 2,  # fetch more for re-ranking
-                    threshold=threshold,
-                )
+            ltm_results = self._ltm.search(
+                query=query or "",
+                query_embedding=query_embedding,
+                memory_types=type_filter,
+                limit=limit * 2,  # fetch more for re-ranking
+                threshold=threshold,
+                include_archived=include_archived,  # Bug #6: forward the filter
             )
-        except RuntimeError:
+        except Exception:
             ltm_results = []
 
-        # Apply archived filter
+        # Apply archived filter (safety net)
         if not include_archived:
             ltm_results = [
                 i for i in ltm_results
@@ -271,14 +256,12 @@ class AgentMemory:
             try:
                 activation_scores = {}
                 for sid in top_ids:
-                    assoc = asyncio.run(
-                        self._backend.get_associated(sid, max_depth=2, min_strength=0.1)
-                    )
+                    assoc = self._backend.get_associated(sid, max_depth=2, min_strength=0.1)
                     for aid, activation in assoc.items():
                         activation_scores[aid] = max(
                             activation_scores.get(aid, 0.0), activation
                         )
-            except RuntimeError:
+            except Exception:
                 activation_scores = None
 
         # Hybrid re-ranking
@@ -299,14 +282,17 @@ class AgentMemory:
 
                 # Auto-archive: if memory is below threshold, don't return it
                 if self._config.auto_archive_on_recall and item.is_forgotten(self._config.forgetting_threshold):
-                    item.consolidation_stage = ConsolidationStage.ARCHIVED
-                    item.importance = 0.0
-                    import asyncio
-                    with contextlib.suppress(RuntimeError):
-                        asyncio.run(self._backend.update(item))
+                    # Bug #3: only archive LTM-managed types; skip working/sensory silently
+                    if item.memory_type in LongTermMemory.MANAGED_TYPES:
+                        item.consolidation_stage = ConsolidationStage.ARCHIVED
+                        item.importance = 0.0
+                        self._backend.update(item)
                     continue  # skip — this memory is too far gone
 
                 item.touch()
+                # Bug #7: persist touch for LTM-managed items
+                if item.memory_type in LongTermMemory.MANAGED_TYPES:
+                    self._backend.update(item)
                 final.append(item)
 
         # Tick operation counter (triggers prune if threshold reached)
@@ -365,18 +351,15 @@ class AgentMemory:
                 memory_types = [memory_types]
             type_filter = [MT(t) for t in memory_types]
 
-        import asyncio
         try:
-            return asyncio.run(
-                self._ltm.search(
-                    query=query,
-                    memory_types=type_filter,
-                    limit=limit,
-                    mode=mode,
-                    **kwargs,
-                )
+            return self._ltm.search(
+                query=query,
+                memory_types=type_filter,
+                limit=limit,
+                mode=mode,
+                **kwargs,
             )
-        except RuntimeError:
+        except Exception:
             return []
 
     def get(self, memory_id: str) -> MemoryItem | None:
@@ -389,10 +372,9 @@ class AgentMemory:
         if item is not None:
             return item
 
-        import asyncio
         try:
-            return asyncio.run(self._backend.get(memory_id))
-        except RuntimeError:
+            return self._backend.get(memory_id)
+        except Exception:
             return None
 
     def forget(self, memory_id: str) -> None:
@@ -401,29 +383,19 @@ class AgentMemory:
         Sets it to ARCHIVED stage so it's excluded from normal
         retrieval but can still be recovered with include_archived.
         """
-        import asyncio
-        try:
-            item = asyncio.run(self._backend.get(memory_id))
-        except RuntimeError:
-            return
+        item = self._backend.get(memory_id)
         if item is not None:
             item.consolidation_stage = ConsolidationStage.ARCHIVED
-            with contextlib.suppress(RuntimeError):
-                asyncio.run(self._backend.update(item))
+            self._backend.update(item)
 
     def tag(self, memory_id: str, *tags: str) -> None:
         """Add tags to an existing memory."""
-        import asyncio
-        try:
-            item = asyncio.run(self._backend.get(memory_id))
-        except RuntimeError:
-            return
+        item = self._backend.get(memory_id)
         if item is not None:
             existing = set(item.tags)
             existing.update(tags)
             item.tags = list(existing)
-            with contextlib.suppress(RuntimeError):
-                asyncio.run(self._backend.update(item))
+            self._backend.update(item)
 
     def tag_emotion(self, memory_id: str, valence: float, arousal: float) -> None:
         """Tag a memory with emotional dimensions.
@@ -433,16 +405,11 @@ class AgentMemory:
             valence: Emotional valence [-1, 1].
             arousal: Emotional arousal [0, 1].
         """
-        import asyncio
-        try:
-            item = asyncio.run(self._backend.get(memory_id))
-        except RuntimeError:
-            return
+        item = self._backend.get(memory_id)
         if item is not None:
             item.valence = max(-1.0, min(1.0, valence))
             item.arousal = max(0.0, min(1.0, arousal))
-            with contextlib.suppress(RuntimeError):
-                asyncio.run(self._backend.update(item))
+            self._backend.update(item)
 
     # ──────────────────────────────────────────────────────────────
     # Tier 3: Advanced API
@@ -468,9 +435,7 @@ class AgentMemory:
 
         This creates a directed edge in the association graph.
         """
-        import asyncio
-        with contextlib.suppress(RuntimeError):
-            asyncio.run(self._backend.add_association(source_id, target_id, strength))
+        self._backend.add_association(source_id, target_id, strength)
 
     def retrieve_associated(
         self,
@@ -492,20 +457,14 @@ class AgentMemory:
         Returns:
             List of (MemoryItem, activation_strength) tuples.
         """
-        import asyncio
         try:
-            associations = asyncio.run(
-                self._backend.get_associated(memory_id, max_depth, min_strength)
-            )
-        except RuntimeError:
+            associations = self._backend.get_associated(memory_id, max_depth, min_strength)
+        except Exception:
             return []
 
         results: list[tuple[MemoryItem, float]] = []
         for aid, activation in associations.items():
-            try:
-                item = asyncio.run(self._backend.get(aid))
-            except RuntimeError:
-                continue
+            item = self._backend.get(aid)
             if item is not None:
                 results.append((item, activation))
 
@@ -517,15 +476,10 @@ class AgentMemory:
 
         Mirrors the biological rehearsal effect.
         """
-        import asyncio
-        try:
-            item = asyncio.run(self._backend.get(memory_id))
-        except RuntimeError:
-            return
+        item = self._backend.get(memory_id)
         if item is not None:
             item.rehearse(strength_boost=self._config.rehearsal_strength_boost)
-            with contextlib.suppress(RuntimeError):
-                asyncio.run(self._backend.update(item))
+            self._backend.update(item)
 
     def consolidate(self, *, force: bool = False) -> dict[str, Any]:
         """Run incremental consolidation.
@@ -549,26 +503,28 @@ class AgentMemory:
         # Promote important working memory items
         for item in self._working.get_context(window_size=self._config.working_memory_capacity):
             if item.importance >= self._config.promotion_importance_threshold:
-                import asyncio
-                with contextlib.suppress(RuntimeError):
-                    asyncio.run(self._ltm.promote_from_working(item))
-                report["promotions"] += 1
+                try:
+                    self._ltm.promote_from_working(item)
+                    report["promotions"] += 1  # Bug #9: only increment after success
+                except Exception:
+                    pass
 
         # Tag forgotten memories as archived
-        import asyncio
         try:
-            decaying = asyncio.run(
-                self._backend.get_decaying(threshold=self._config.forgetting_threshold, limit=500)
+            decaying = self._backend.get_decaying(
+                threshold=self._config.forgetting_threshold,
+                limit=500,
             )
-        except RuntimeError:
+        except Exception:
             decaying = []
 
+        # Bug #20: Exclude already-archived items from archival loop
         for item in decaying:
+            if item.consolidation_stage == ConsolidationStage.ARCHIVED:
+                continue
             item.consolidation_stage = ConsolidationStage.ARCHIVED
             item.importance = 0.0
-            import asyncio
-            with contextlib.suppress(RuntimeError):
-                asyncio.run(self._backend.update(item))
+            self._backend.update(item)
             report["archived"] += 1
 
         report["forgotten_count"] = len(decaying)
@@ -578,8 +534,8 @@ class AgentMemory:
         """Run a full sleep consolidation cycle.
 
         This is the advanced consolidation pipeline:
-        1. Working → Episodic promotion (high-importance items)
-        2. Episodic → Semantic abstraction (topic clustering)
+        1. Working -> Episodic promotion (high-importance items)
+        2. Episodic -> Semantic abstraction (topic clustering)
         3. Procedural pattern extraction (repeated sequences)
         4. Forgetting curve archiving
         5. Strength reinforcement (frequently accessed memories)
@@ -587,26 +543,22 @@ class AgentMemory:
         Returns:
             A ConsolidationReport with detailed actions taken.
         """
-        import asyncio
         try:
             working_items = self._working.get_context(
                 window_size=self._config.working_memory_capacity
             )
-            report = asyncio.run(
-                self._consolidator.run(working_items=working_items)
-            )
+            report = self._consolidator.run(working_items=working_items)
             return report
-        except RuntimeError:
+        except Exception:
             return ConsolidationReport(
                 errors=["Could not run sleep consolidation in current event loop"]
             )
 
     def stats(self) -> dict[str, Any]:
         """Return system statistics."""
-        import asyncio
         try:
-            backend_stats = asyncio.run(self._backend.stats())
-        except RuntimeError:
+            backend_stats = self._backend.stats()
+        except Exception:
             backend_stats = {"total": 0}
         return {
             **backend_stats,
@@ -618,9 +570,7 @@ class AgentMemory:
         """Wipe all memories. Use with caution."""
         self._sensory.clear()
         self._working.clear()
-        import asyncio
-        with contextlib.suppress(RuntimeError):
-            asyncio.run(self._backend.clear())
+        self._backend.clear()
 
     # ── Event hooks ──────────────────────────────────────────────
 
@@ -637,27 +587,38 @@ class AgentMemory:
         When exceeded, archives low-importance memories until
         count drops to ``keep_at_most``.
         """
-        import asyncio
         try:
-            stats = asyncio.run(self._backend.stats())
+            stats = self._backend.stats()
             total = stats.get("total", 0)
             if total <= self._config.max_items:
                 return
 
             # Fetch low-importance items and archive them
-            to_archive = asyncio.run(
-                self._backend.list(
-                    sort_by="importance",
-                    sort_desc=False,
-                    limit=total - self._config.keep_at_most,
-                    importance_min=0.0,
-                )
+            to_archive = self._backend.list(
+                sort_by="importance",
+                sort_desc=False,
+                limit=total,
+                importance_min=0.0,
             )
+
+            # Bug #19: exclude archived items from count so total can decrease
+            non_archived = [
+                i for i in to_archive
+                if i.consolidation_stage != ConsolidationStage.ARCHIVED
+            ]
+            if len(non_archived) <= self._config.max_items:
+                return
+
+            target_archive = len(non_archived) - self._config.keep_at_most
+            archived_count = 0
             for item in to_archive:
-                if item.importance <= self._config.prune_below_importance:
+                if archived_count >= target_archive:
+                    break
+                if item.consolidation_stage != ConsolidationStage.ARCHIVED and item.importance <= self._config.prune_below_importance:
                     item.consolidation_stage = ConsolidationStage.ARCHIVED
-                    asyncio.run(self._backend.update(item))
-        except RuntimeError:
+                    self._backend.update(item)
+                    archived_count += 1
+        except Exception:
             pass
 
     def _on_working_evict(self, item: MemoryItem) -> None:
@@ -669,9 +630,7 @@ class AgentMemory:
         if not self._config.auto_consolidate:
             return
         if item.importance >= self._config.promotion_importance_threshold:
-            import asyncio
-            with contextlib.suppress(RuntimeError):
-                asyncio.run(self._ltm.promote_from_working(item))
+            self._ltm.promote_from_working(item)
 
 
 # ── Helpers ──────────────────────────────────────────────────────

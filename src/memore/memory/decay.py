@@ -54,7 +54,9 @@ def hours_until_forgotten(
     Returns:
         Hours until the memory is considered forgotten.
     """
-    if strength <= 0 or decay_rate <= 0:
+    if decay_rate <= 0:
+        return float("inf")
+    if strength <= 0:
         return 0.0
     ratio = threshold / strength
     if ratio <= 0:

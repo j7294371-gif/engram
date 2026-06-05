@@ -35,9 +35,10 @@ def log(msg: str) -> None:
 
 def send(message: dict[str, Any]) -> None:
     """Send a JSON-RPC message over stdout."""
-    line = json.dumps(message)
-    sys.stdout.write(f"Content-Length: {len(line)}\r\n\r\n{line}")
-    sys.stdout.flush()
+    body = json.dumps(message).encode("utf-8")
+    sys.stdout.buffer.write(f"Content-Length: {len(body)}\r\n\r\n".encode())
+    sys.stdout.buffer.write(body)
+    sys.stdout.buffer.flush()
 
 
 def read() -> dict[str, Any] | None:
@@ -326,7 +327,7 @@ def main() -> None:
                 })
 
             elif method == "notifications/initialized":
-                send({"jsonrpc": "2.0", "id": msg_id, "result": {}})
+                pass  # Notification — no response
 
             elif method == "shutdown":
                 send({"jsonrpc": "2.0", "id": msg_id, "result": {}})

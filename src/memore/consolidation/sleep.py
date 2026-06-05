@@ -10,6 +10,7 @@ Mimics the biological sleep cycle where memories are:
 
 from __future__ import annotations
 
+import builtins
 import contextlib
 import time
 from dataclasses import dataclass, field
@@ -24,16 +25,16 @@ from memore.storage.base import StorageBackend
 class ConsolidationReport:
     """Detailed report of what happened during a consolidation cycle."""
 
-    promotions: int = 0          # Working → Episodic
-    abstractions: int = 0        # Episodic → Semantic
-    patterns_extracted: int = 0  # Episodic → Procedural
-    archived: int = 0            # Below forgetting threshold
-    strengthened: int = 0        # Rehearsed during sleep
-    merged: int = 0              # Duplicate memories merged
-    purged: int = 0              # Archived memories permanently deleted
-    compressed: int = 0          # Long content truncated
-    duration_ms: float = 0.0     # Wall-clock time
-    errors: list[str] = field(default_factory=list)
+    promotions: builtins.int = 0          # Working → Episodic
+    abstractions: builtins.int = 0        # Episodic → Semantic
+    patterns_extracted: builtins.int = 0  # Episodic → Procedural
+    archived: builtins.int = 0            # Below forgetting threshold
+    strengthened: builtins.int = 0        # Rehearsed during sleep
+    merged: builtins.int = 0              # Duplicate memories merged
+    purged: builtins.int = 0              # Archived memories permanently deleted
+    compressed: builtins.int = 0          # Long content truncated
+    duration_ms: builtins.float = 0.0     # Wall-clock time
+    errors: builtins.list[builtins.str] = field(default_factory=list)
 
     def __str__(self) -> str:
         parts = [
@@ -74,9 +75,9 @@ class SleepConsolidation:
         self._forgetting_threshold = forgetting_threshold
         self._rehearsal_boost = rehearsal_boost
 
-    async def run(
+    def run(
         self,
-        working_items: list[MemoryItem] | None = None,
+        working_items: builtins.list[MemoryItem] | None = None,
     ) -> ConsolidationReport:
         """Run the full consolidation cycle.
 
@@ -93,37 +94,37 @@ class SleepConsolidation:
 
         # Stage 1: Promote high-importance working → episodic
         if working_items:
-            await self._stage1_promote_working(working_items, report)
+            self._stage1_promote_working(working_items, report)
 
         # Stage 2: Extract semantic abstractions from episodic clusters
-        await self._stage2_abstract_semantic(report)
+        self._stage2_abstract_semantic(report)
 
         # Stage 3: Extract procedural patterns
-        await self._stage3_extract_procedural(report)
+        self._stage3_extract_procedural(report)
 
         # Stage 4: Apply forgetting curve
-        await self._stage4_forgetting_curve(report)
+        self._stage4_forgetting_curve(report)
 
         # Stage 5: Merge near-duplicate memories
-        await self._stage5_merge_duplicates(report)
+        self._stage5_merge_duplicates(report)
 
         # Stage 6: Purge archived memories
-        await self._stage6_purge_archived(report)
+        self._stage6_purge_archived(report)
 
         # Stage 7: Compress very old memory content
-        await self._stage7_compress_content(report)
+        self._stage7_compress_content(report)
 
         # Stage 8: Strengthen frequently accessed memories
-        await self._stage8_strengthen(report)
+        self._stage8_strengthen(report)
 
         report.duration_ms = (time.monotonic() - start) * 1000
         return report
 
     # ── Stage 1: Working → Episodic promotion ───────────────────
 
-    async def _stage1_promote_working(
+    def _stage1_promote_working(
         self,
-        working_items: list[MemoryItem],
+        working_items: builtins.list[MemoryItem],
         report: ConsolidationReport,
     ) -> None:
         """Promote high-importance working memory items to episodic."""
@@ -141,26 +142,26 @@ class SleepConsolidation:
                         tags=list(item.tags),
                         metadata=dict(item.metadata),
                         source=item.source,
-                        strength=item.strength * 0.9,  # slight decay on promotion
+                        strength=min(1.0, item.strength * 1.05),  # slight consolidation boost
                         importance=item.importance,
                         valence=item.valence,
                         arousal=item.arousal,
                         consolidation_stage=ConsolidationStage.WORKING_PROMOTED,
                         promoted_from=item.id,
                     )
-                    await self._backend.store(episodic)
+                    self._backend.store(episodic)
                     report.promotions += 1
                 except Exception as e:
                     report.errors.append(f"promote({item.id}): {e}")
 
     # ── Stage 2: Episodic → Semantic abstraction ────────────────
 
-    async def _stage2_abstract_semantic(self, report: ConsolidationReport) -> None:
+    def _stage2_abstract_semantic(self, report: ConsolidationReport) -> None:
         """Find clusters of similar episodic memories and extract
         semantic abstractions."""
         try:
             # Get recent episodic memories with high importance
-            episodic = await self._backend.list(
+            episodic = self._backend.list(
                 memory_types=[MemoryType.EPISODIC],
                 importance_min=0.5,
                 limit=100,
@@ -207,15 +208,15 @@ class SleepConsolidation:
                         consolidation_stage=ConsolidationStage.SEMANTIC_EXTRACTED,
                         abstraction_source_ids=source_ids,
                     )
-                    await self._backend.store(semantic)
+                    self._backend.store(semantic)
                     report.abstractions += 1
 
                     # Tag source items as semantically extracted
                     for m in members:
-                        if m.consolidation_stage == ConsolidationStage.RAW:
+                        if m.consolidation_stage in (ConsolidationStage.RAW, ConsolidationStage.WORKING_PROMOTED):
                             m.consolidation_stage = ConsolidationStage.SEMANTIC_EXTRACTED
                             with contextlib.suppress(Exception):
-                                await self._backend.update(m)
+                                self._backend.update(m)
                 except Exception as e:
                     report.errors.append(f"abstract({topic}): {e}")
 
@@ -224,11 +225,11 @@ class SleepConsolidation:
 
     # ── Stage 3: Procedural pattern extraction ──────────────────
 
-    async def _stage3_extract_procedural(self, report: ConsolidationReport) -> None:
+    def _stage3_extract_procedural(self, report: ConsolidationReport) -> None:
         """Detect repeated patterns in episodic memories and
         extract procedural knowledge."""
         try:
-            episodic = await self._backend.list(
+            episodic = self._backend.list(
                 memory_types=[MemoryType.EPISODIC],
                 importance_min=0.3,
                 limit=200,
@@ -258,7 +259,7 @@ class SleepConsolidation:
                         consolidation_stage=ConsolidationStage.PROCEDURAL_EXTRACTED,
                         abstraction_source_ids=[s.id for s in sources],
                     )
-                    await self._backend.store(procedural)
+                    self._backend.store(procedural)
                     report.patterns_extracted += 1
                 except Exception as e:
                     report.errors.append(f"pattern extract: {e}")
@@ -268,19 +269,19 @@ class SleepConsolidation:
 
     # ── Stage 4: Forgetting curve ───────────────────────────────
 
-    async def _stage4_forgetting_curve(self, report: ConsolidationReport) -> None:
+    def _stage4_forgetting_curve(self, report: ConsolidationReport) -> None:
         """Archive memories that have decayed below the forgetting
         threshold."""
         try:
-            decaying = await self._backend.get_decaying(
+            decaying = self._backend.get_decaying(
                 threshold=self._forgetting_threshold,
                 limit=500,
             )
             for item in decaying:
                 item.consolidation_stage = ConsolidationStage.ARCHIVED
-                item.importance = 0.0
+                item.importance = max(0.01, item.importance * 0.3)  # reduce but don't zero
                 try:
-                    await self._backend.update(item)
+                    self._backend.update(item)
                     report.archived += 1
                 except Exception as e:
                     report.errors.append(f"archive({item.id}): {e}")
@@ -289,15 +290,15 @@ class SleepConsolidation:
 
     # ── Stage 5: Merge near-duplicate memories ──────────────────
 
-    async def _stage5_merge_duplicates(self, report: ConsolidationReport) -> None:
+    def _stage5_merge_duplicates(self, report: ConsolidationReport) -> None:
         """Find and merge near-duplicate memories.
 
         If two episodic memories have very similar content, keep
         only the one with higher importance (compression ratio N→1).
         """
         try:
-            items = await self._backend.list(
-                memory_types=[MemoryType.EPISODIC, MemoryType.SEMANTIC],
+            items = self._backend.list(
+                memory_types=[MemoryType.EPISODIC, MemoryType.SEMANTIC, MemoryType.PROCEDURAL],
                 limit=200,
                 sort_by="created_at",
                 sort_desc=True,
@@ -318,20 +319,25 @@ class SleepConsolidation:
                 duplicates.sort(key=lambda i: i.importance, reverse=True)
                 keeper = duplicates[0]
                 for dup in duplicates[1:]:
+                    # Merge tags and metadata before deleting
+                    merged_tags = list(set(keeper.tags) | set(dup.tags))
+                    keeper.tags = merged_tags
+                    keeper.metadata.update(dup.metadata)
+                    self._backend.update(keeper)
                     # Transfer associations from duplicate to keeper
-                    assoc = await self._backend.get_associated(dup.id, max_depth=1)
+                    assoc = self._backend.get_associated(dup.id, max_depth=1)
                     for source_id, strength in assoc.items():
-                        await self._backend.add_association(keeper.id, source_id,
+                        self._backend.add_association(keeper.id, source_id,
                                                              max(strength, 0.5))
                     # Delete the duplicate
-                    await self._backend.delete(dup.id)
+                    self._backend.delete(dup.id)
                     report.merged += 1
         except Exception as e:
             report.errors.append(f"stage5(merge): {e}")
 
     # ── Stage 6: Purge archived memories ───────────────────────
 
-    async def _stage6_purge_archived(self, report: ConsolidationReport) -> None:
+    def _stage6_purge_archived(self, report: ConsolidationReport) -> None:
         """Permanently delete archived memories that haven't been
         accessed in a long time.
 
@@ -339,7 +345,7 @@ class SleepConsolidation:
         access, they're permanently removed to free storage.
         """
         try:
-            archived = await self._backend.list(
+            archived = self._backend.list(
                 memory_types=[MemoryType.EPISODIC, MemoryType.SEMANTIC, MemoryType.PROCEDURAL],
                 limit=500,
                 sort_by="last_accessed_at",
@@ -350,18 +356,18 @@ class SleepConsolidation:
 
             for item in archived:
                 if item.consolidation_stage == ConsolidationStage.ARCHIVED and item.last_accessed_at < cutoff:
-                        await self._backend.delete(item.id)
+                        self._backend.delete(item.id)
                         report.purged += 1
         except Exception as e:
             report.errors.append(f"stage6(purge): {e}")
 
     # ── Stage 7: Compress old memory content ───────────────────
 
-    async def _stage7_compress_content(self, report: ConsolidationReport) -> None:
+    def _stage7_compress_content(self, report: ConsolidationReport) -> None:
         """Truncate very long content from old, low-importance memories
         to save storage space."""
         try:
-            items = await self._backend.list(
+            items = self._backend.list(
                 limit=200,
                 sort_by="created_at",
                 sort_desc=False,
@@ -370,7 +376,7 @@ class SleepConsolidation:
                 if item.importance < 0.3 and len(item.content) > 200:
                     item.content = item.content[:150] + "... [compressed]"
                     try:
-                        await self._backend.update(item)
+                        self._backend.update(item)
                         report.compressed += 1
                     except Exception:
                         pass
@@ -379,12 +385,12 @@ class SleepConsolidation:
 
     # ── Stage 8: Strengthen ─────────────────────────────────────
 
-    async def _stage8_strengthen(self, report: ConsolidationReport) -> None:
+    def _stage8_strengthen(self, report: ConsolidationReport) -> None:
         """Strengthen frequently accessed memories via simulated
         rehearsal during sleep."""
         try:
             # Get top-accessed memories
-            frequent = await self._backend.list(
+            frequent = self._backend.list(
                 limit=50, sort_by="access_count", sort_desc=True
             )
             for item in frequent:
@@ -392,22 +398,22 @@ class SleepConsolidation:
                     item.strength = min(1.0, item.strength + self._rehearsal_boost)
                     item.last_rehearsed_at = datetime.now(timezone.utc)
                     try:
-                        await self._backend.update(item)
+                        self._backend.update(item)
                         report.strengthened += 1
                     except Exception:
                         pass
         except Exception as e:
-            report.errors.append(f"stage5: {e}")
+            report.errors.append(f"stage8: {e}")
 
     # ── Helper methods ──────────────────────────────────────────
 
-    def _cluster_by_topic(self, items: list[MemoryItem]) -> dict[str, list[MemoryItem]]:
+    def _cluster_by_topic(self, items: builtins.list[MemoryItem]) -> dict[str, builtins.list[MemoryItem]]:
         """Simple keyword-overlap clustering.
 
         Groups items that share significant keyword overlap.
         Returns a dict of {topic_keyword: [items]}.
         """
-        clusters: dict[str, list[MemoryItem]] = {}
+        clusters: dict[str, builtins.list[MemoryItem]] = {}
         for item in items:
             # Extract meaningful keywords (words > 4 chars)
             words = set(
@@ -425,7 +431,7 @@ class SleepConsolidation:
 
         return clusters
 
-    def _common_tags(self, items: list[MemoryItem]) -> set[str]:
+    def _common_tags(self, items: builtins.list[MemoryItem]) -> set[str]:
         """Find tags common to a majority of items."""
         if not items:
             return set()
@@ -436,7 +442,7 @@ class SleepConsolidation:
         threshold = len(items) // 2
         return {tag for tag, count in tag_counts.items() if count >= threshold}
 
-    def _synthesize_abstraction(self, topic: str, members: list[MemoryItem]) -> str:
+    def _synthesize_abstraction(self, topic: str, members: builtins.list[MemoryItem]) -> str:
         """Synthesize an abstracted semantic fact from episodic memories.
 
         Creates a concise, generalized statement about the topic
@@ -464,16 +470,16 @@ class SleepConsolidation:
         )
 
     def _detect_procedural_patterns(
-        self, items: list[MemoryItem]
-    ) -> dict[str, list[MemoryItem]]:
+        self, items: builtins.list[MemoryItem]
+    ) -> dict[str, builtins.list[MemoryItem]]:
         """Detect repeated action patterns across episodic memories.
 
         Looks for sequences like "X then Y" or repeated verb patterns.
         """
-        patterns: dict[str, list[MemoryItem]] = {}
+        patterns: dict[str, builtins.list[MemoryItem]] = {}
 
         # Simple approach: find common phrases across items
-        phrase_map: dict[str, list[MemoryItem]] = {}
+        phrase_map: dict[str, builtins.list[MemoryItem]] = {}
         for item in items:
             words = item.content.lower().split()
             # Extract 2-3 word phrases

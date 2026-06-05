@@ -174,6 +174,7 @@ class MemoryItem:
             + emotional_weight * emotional
             + attention_weight * attention
         )
+        self.importance = max(0.0, min(1.0, self.importance))
         return self.importance
 
     # ── Emotional congruence ────────────────────────────────────
@@ -193,6 +194,7 @@ class MemoryItem:
     def touch(self) -> None:
         """Record an access to this memory."""
         self.last_accessed_at = _now_utc()
+        self.last_rehearsed_at = _now_utc()
         self.access_count += 1
 
     def to_dict(self) -> dict[str, Any]:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import AsyncGenerator
+from typing import Generator
 
 import pytest
 
@@ -59,9 +59,9 @@ def empty_backend() -> InMemoryBackend:
 
 
 @pytest.fixture
-async def populated_backend(empty_backend: InMemoryBackend) -> AsyncGenerator[InMemoryBackend, None]:
+def populated_backend(empty_backend: InMemoryBackend) -> Generator[InMemoryBackend, None, None]:
     """An in-memory backend pre-populated with test memories."""
-    await empty_backend.initialize()
+    empty_backend.initialize()
 
     memories = [
         MemoryItem(id="pop_1", content="First memory", memory_type=MemoryType.EPISODIC, tags=["a"]),
@@ -69,9 +69,9 @@ async def populated_backend(empty_backend: InMemoryBackend) -> AsyncGenerator[In
         MemoryItem(id="pop_3", content="Third memory about Rust", memory_type=MemoryType.SEMANTIC, tags=["c"]),
         MemoryItem(id="pop_4", content="Fourth memory", memory_type=MemoryType.PROCEDURAL, tags=["d"]),
     ]
-    await empty_backend.batch_store(memories)
+    empty_backend.batch_store(memories)
     yield empty_backend
-    await empty_backend.close()
+    empty_backend.close()
 
 
 @pytest.fixture

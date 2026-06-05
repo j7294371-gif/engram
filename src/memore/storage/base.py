@@ -22,48 +22,48 @@ class StorageBackend(ABC):
     # ── Lifecycle ────────────────────────────────────────────────
 
     @abstractmethod
-    async def initialize(self) -> None:
+    def initialize(self) -> None:
         """Open connections, create tables/collections, run migrations."""
 
     @abstractmethod
-    async def close(self) -> None:
+    def close(self) -> None:
         """Close connections and release resources."""
 
     # ── CRUD ─────────────────────────────────────────────────────
 
     @abstractmethod
-    async def store(self, item: MemoryItem) -> str:
+    def store(self, item: MemoryItem) -> str:
         """Insert a new memory item. Returns its ID.
 
         Raises ``DuplicateMemoryError`` if the ID already exists.
         """
 
     @abstractmethod
-    async def batch_store(self, items: builtins.list[MemoryItem]) -> None:
+    def batch_store(self, items: builtins.list[MemoryItem]) -> None:
         """Optimized bulk insert of multiple items."""
 
     @abstractmethod
-    async def get(self, memory_id: str) -> MemoryItem | None:
+    def get(self, memory_id: str) -> MemoryItem | None:
         """Retrieve a single memory item by ID.
 
         Returns ``None`` if not found.
         """
 
     @abstractmethod
-    async def update(self, item: MemoryItem) -> None:
+    def update(self, item: MemoryItem) -> None:
         """Full-overwrite update of an existing memory item.
 
         Raises ``MemoryNotFoundError`` if the item does not exist.
         """
 
     @abstractmethod
-    async def delete(self, memory_id: str) -> None:
+    def delete(self, memory_id: str) -> None:
         """Remove a memory item by ID. Idempotent (no-op if missing)."""
 
     # ── Query ────────────────────────────────────────────────────
 
     @abstractmethod
-    async def search(
+    def search(
         self,
         query: str,
         query_embedding: builtins.list[float] | None = None,
@@ -80,7 +80,7 @@ class StorageBackend(ABC):
         """
 
     @abstractmethod
-    async def list(
+    def list(
         self,
         memory_types: Collection[MemoryType] | None = None,
         importance_min: float = 0.0,
@@ -96,7 +96,7 @@ class StorageBackend(ABC):
     # ── Associations (Graph) ─────────────────────────────────────
 
     @abstractmethod
-    async def add_association(
+    def add_association(
         self,
         source_id: str,
         target_id: str,
@@ -105,11 +105,11 @@ class StorageBackend(ABC):
         """Create or strengthen a directed association between two memories."""
 
     @abstractmethod
-    async def remove_association(self, source_id: str, target_id: str) -> None:
+    def remove_association(self, source_id: str, target_id: str) -> None:
         """Remove a specific directed association. Idempotent."""
 
     @abstractmethod
-    async def get_associated(
+    def get_associated(
         self,
         memory_id: str,
         max_depth: int = 2,
@@ -124,7 +124,7 @@ class StorageBackend(ABC):
     # ── Forgetting ───────────────────────────────────────────────
 
     @abstractmethod
-    async def get_decaying(
+    def get_decaying(
         self,
         threshold: float = 0.3,
         limit: int = 100,
@@ -134,9 +134,9 @@ class StorageBackend(ABC):
     # ─── Stats & admin ───────────────────────────────────────────
 
     @abstractmethod
-    async def stats(self) -> dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         """Return system statistics (counts per type, averages, etc.)."""
 
     @abstractmethod
-    async def clear(self) -> None:
+    def clear(self) -> None:
         """Remove all data. Use with extreme caution."""

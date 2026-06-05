@@ -94,8 +94,11 @@ class HybridRanker:
             sim = _cosine_similarity(query_embedding, item.embedding)
             score += self.semantic_weight * sim
         elif query:
-            # Fallback: use retrieval probability as proxy
-            score += self.semantic_weight * item.retrieval_probability()
+            # Fallback: use simple keyword overlap score
+            query_words = set(query.lower().split()) if query else set()
+            content_words = set(item.content.lower().split())
+            overlap = len(query_words & content_words) / max(len(query_words), 1) if query_words else 0
+            score += self.semantic_weight * overlap
 
         # 2. Associative activation
         if activation_scores and item.id in activation_scores:

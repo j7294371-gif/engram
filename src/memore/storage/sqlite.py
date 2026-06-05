@@ -68,7 +68,7 @@ class SQLiteBackend(StorageBackend):
 
     # ── Lifecycle ────────────────────────────────────────────────
 
-    async def initialize(self) -> None:
+    def initialize(self) -> None:
         if self._initialized:
             return
         with self._lock:
@@ -76,7 +76,7 @@ class SQLiteBackend(StorageBackend):
                 cur.executescript(_SCHEMA_SQL)
             self._initialized = True
 
-    async def close(self) -> None:
+    def close(self) -> None:
         if hasattr(self._local, "conn") and self._local.conn:
             self._local.conn.close()
             self._local.conn = None
@@ -84,7 +84,7 @@ class SQLiteBackend(StorageBackend):
 
     # ── CRUD ─────────────────────────────────────────────────────
 
-    async def store(self, item: MemoryItem) -> str:
+    def store(self, item: MemoryItem) -> str:
         with self._lock:
             with self._tx() as cur:
                 # Check for duplicate
@@ -97,7 +97,7 @@ class SQLiteBackend(StorageBackend):
                 self._insert_associations(cur, item.id, item.associations)
             return item.id
 
-    async def batch_store(self, items: builtins.list[MemoryItem]) -> None:
+    def batch_store(self, items: builtins.list[MemoryItem]) -> None:
         with self._lock:
             with self._tx() as cur:
                 for item in items:
@@ -108,7 +108,7 @@ class SQLiteBackend(StorageBackend):
                     self._insert_tags(cur, item.id, item.tags)
                     self._insert_associations(cur, item.id, item.associations)
 
-    async def get(self, memory_id: str) -> MemoryItem | None:
+    def get(self, memory_id: str) -> MemoryItem | None:
         with self._lock:
             with self._tx() as cur:
                 cur.execute("SELECT * FROM memories WHERE id = ?", (memory_id,))
@@ -117,7 +117,7 @@ class SQLiteBackend(StorageBackend):
                     return None
                 return self._row_to_item(cur, row)
 
-    async def update(self, item: MemoryItem) -> None:
+    def update(self, item: MemoryItem) -> None:
         with self._lock:
             with self._tx() as cur:
                 cur.execute("SELECT 1 FROM memories WHERE id = ?", (item.id,))
@@ -153,7 +153,7 @@ class SQLiteBackend(StorageBackend):
                 cur.execute("DELETE FROM associations WHERE source_id = ?", (item.id,))
                 self._insert_associations(cur, item.id, item.associations)
 
-    async def delete(self, memory_id: str) -> None:
+    def delete(self, memory_id: str) -> None:
         with self._lock:
             with self._tx() as cur:
                 cur.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
@@ -163,7 +163,7 @@ class SQLiteBackend(StorageBackend):
 
     # ── Query ────────────────────────────────────────────────────
 
-    async def search(
+    def search(
         self,
         query: str,
         query_embedding: builtins.list[float] | None = None,
@@ -196,6 +196,20 @@ class SQLiteBackend(StorageBackend):
                 if not include_archived:
                     where_clauses.append("m.consolidation_stage != 'archived'")
 
+                # Metadata filters via json_extract
+                for key, value in metadata_filters.items():
+                    if value is None:
+                        where_clauses.append(f"json_extract(m.metadata_json, '$.{key}') IS NULL")
+                    elif isinstance(value, bool):
+                        where_clauses.append(f"json_extract(m.metadata_json, '$.{key}') = ?")
+                        params.append(1 if value else 0)
+                    elif isinstance(value, (int, float, str)):
+                        where_clauses.append(f"json_extract(m.metadata_json, '$.{key}') = ?")
+                        params.append(value)
+                    else:
+                        where_clauses.append(f"json_extract(m.metadata_json, '$.{key}') = ?")
+                        params.append(json.dumps(value))
+
                 # Build query
                 where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
                 sql = f"SELECT m.* FROM memories m WHERE {where_sql} ORDER BY m.importance DESC, m.created_at DESC LIMIT ?"
@@ -204,7 +218,7 @@ class SQLiteBackend(StorageBackend):
                 cur.execute(sql, params)
                 return [self._row_to_item(cur, row) for row in cur.fetchall()]
 
-    async def list(
+    def list(
         self,
         memory_types: Collection[MemoryType] | None = None,
         importance_min: float = 0.0,
@@ -237,11 +251,25 @@ class SQLiteBackend(StorageBackend):
         with self._lock:
             with self._tx() as cur:
                 cur.execute(sql, params)
-                return [self._row_to_item(cur, row) for row in cur.fetchall()]
+                results = [self._row_to_item(cur, row) for row in cur.fetchall()]
+
+                # Apply metadata filters (loop-based post-filter)
+                if metadata_filters:
+                    filtered = []
+                    for item in results:
+                        match = True
+                        for key, value in metadata_filters.items():
+                            if key not in item.metadata or item.metadata[key] != value:
+                                match = False
+                                break
+                        if match:
+                            filtered.append(item)
+                    return filtered
+                return results
 
     # ── Associations ─────────────────────────────────────────────
 
-    async def add_association(self, source_id: str, target_id: str, strength: float = 1.0) -> None:
+    def add_association(self, source_id: str, target_id: str, strength: float = 1.0) -> None:
         with self._lock:
             with self._tx() as cur:
                 cur.execute(
@@ -251,7 +279,7 @@ class SQLiteBackend(StorageBackend):
                     (source_id, target_id, strength, _ts(datetime.now(timezone.utc)), strength),
                 )
 
-    async def remove_association(self, source_id: str, target_id: str) -> None:
+    def remove_association(self, source_id: str, target_id: str) -> None:
         with self._lock:
             with self._tx() as cur:
                 cur.execute(
@@ -259,7 +287,7 @@ class SQLiteBackend(StorageBackend):
                     (source_id, target_id),
                 )
 
-    async def get_associated(
+    def get_associated(
         self,
         memory_id: str,
         max_depth: int = 2,
@@ -270,7 +298,7 @@ class SQLiteBackend(StorageBackend):
                 # Use recursive CTE for BFS traversal
                 cur.execute(
                     """WITH RECURSIVE assoc(id, strength, depth) AS (
-                           SELECT target_id, strength, 1
+                           SELECT target_id, strength * 0.85, 1
                            FROM associations WHERE source_id = ? AND strength >= ?
                            UNION ALL
                            SELECT a.target_id, a.strength * assoc.strength * 0.85, assoc.depth + 1
@@ -285,7 +313,7 @@ class SQLiteBackend(StorageBackend):
 
     # ── Forgetting ───────────────────────────────────────────────
 
-    async def get_decaying(self, threshold: float = 0.3, limit: int = 100) -> builtins.list[MemoryItem]:
+    def get_decaying(self, threshold: float = 0.3, limit: int = 100) -> builtins.list[MemoryItem]:
         """Return memories with low retrieval probability.
 
         Retrieval probability P = strength * exp(-decay_rate * hours_since_rehearsal)
@@ -299,8 +327,11 @@ class SQLiteBackend(StorageBackend):
                     """SELECT m.* FROM memories m
                        WHERE m.strength > 0
                          AND m.consolidation_stage != 'archived'
-                         AND (CAST(strftime('%s', 'now') AS REAL) - m.last_rehearsed_at) / 3600.0
-                             > -ln(? / m.strength) / m.decay_rate
+                         AND CASE WHEN m.decay_rate > 0
+                           THEN (CAST(strftime('%s', 'now') AS REAL) - m.last_rehearsed_at) / 3600.0
+                                > -ln(? / m.strength) / m.decay_rate
+                           ELSE 0
+                         END
                        LIMIT ?""",
                     (threshold, limit),
                 )
@@ -308,7 +339,7 @@ class SQLiteBackend(StorageBackend):
 
     # ── Stats ────────────────────────────────────────────────────
 
-    async def stats(self) -> dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         with self._lock:
             with self._tx() as cur:
                 cur.execute("SELECT COUNT(*) as total FROM memories")
@@ -332,7 +363,7 @@ class SQLiteBackend(StorageBackend):
                     "associations": assoc_count,
                 }
 
-    async def clear(self) -> None:
+    def clear(self) -> None:
         with self._lock:
             with self._tx() as cur:
                 cur.execute("DELETE FROM memories")
@@ -412,6 +443,7 @@ class SQLiteBackend(StorageBackend):
             arousal=row["arousal"],
             importance=row["importance"],
             attention_weight=row["attention_weight"],
+            capacity_slot=row["capacity_slot"],
             consolidation_stage=ConsolidationStage(row["consolidation_stage"]),
             consolidated_at=_from_ts(row["consolidated_at"]) if row["consolidated_at"] else None,
             promoted_from=row["promoted_from"],

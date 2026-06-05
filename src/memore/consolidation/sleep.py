@@ -311,7 +311,7 @@ class SleepConsolidation:
                     seen_hashes[fingerprint] = []
                 seen_hashes[fingerprint].append(item)
 
-            for fingerprint, duplicates in seen_hashes.items():
+            for _fingerprint, duplicates in seen_hashes.items():
                 if len(duplicates) < 2:
                     continue
                 # Keep the one with highest importance
@@ -349,8 +349,7 @@ class SleepConsolidation:
             cutoff = datetime.now(timezone.utc) - timedelta(days=7)
 
             for item in archived:
-                if item.consolidation_stage == ConsolidationStage.ARCHIVED:
-                    if item.last_accessed_at < cutoff:
+                if item.consolidation_stage == ConsolidationStage.ARCHIVED and item.last_accessed_at < cutoff:
                         await self._backend.delete(item.id)
                         report.purged += 1
         except Exception as e:
@@ -447,10 +446,8 @@ class SleepConsolidation:
         statements = []
         for m in members:
             content_lower = m.content.lower()
-            if topic.lower() in content_lower:
-                # Try to extract a concise version
-                if len(m.content) < 200:
-                    statements.append(m.content)
+            if topic.lower() in content_lower and len(m.content) < 200:
+                statements.append(m.content)
 
         if not statements:
             # Fallback: generic abstraction

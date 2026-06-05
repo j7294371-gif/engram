@@ -110,9 +110,8 @@ class InMemoryBackend(StorageBackend):
                 continue
             if not include_archived and item.consolidation_stage == ConsolidationStage.ARCHIVED:
                 continue
-            if metadata_filters:
-                if not all(item.metadata.get(k) == v for k, v in metadata_filters.items()):
-                    continue
+            if metadata_filters and not all(item.metadata.get(k) == v for k, v in metadata_filters.items()):
+                continue
 
             # Keyword match
             if query_lower:
@@ -149,9 +148,8 @@ class InMemoryBackend(StorageBackend):
                 continue
             if not include_archived and item.consolidation_stage == ConsolidationStage.ARCHIVED:
                 continue
-            if metadata_filters:
-                if not all(item.metadata.get(k) == v for k, v in metadata_filters.items()):
-                    continue
+            if metadata_filters and not all(item.metadata.get(k) == v for k, v in metadata_filters.items()):
+                continue
             results.append(item)
 
         # Sort

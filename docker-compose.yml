@@ -33,7 +33,7 @@ services:
       - "5432:5432"
     environment:
       POSTGRES_USER: engram
-      POSTGRES_PASSWORD: engram
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
       POSTGRES_DB: engram
     volumes:
       - pgvector_data:/var/lib/postgresql/data

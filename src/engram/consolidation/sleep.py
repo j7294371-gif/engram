@@ -31,6 +31,9 @@ class ConsolidationReport:
     patterns_extracted: int = 0  # Episodic → Procedural
     archived: int = 0            # Below forgetting threshold
     strengthened: int = 0        # Rehearsed during sleep
+    merged: int = 0              # Duplicate memories merged
+    purged: int = 0              # Archived memories permanently deleted
+    compressed: int = 0          # Long content truncated
     duration_ms: float = 0.0     # Wall-clock time
     errors: List[str] = field(default_factory=list)
 
@@ -40,6 +43,9 @@ class ConsolidationReport:
             f"abstractions={self.abstractions}",
             f"patterns={self.patterns_extracted}",
             f"archived={self.archived}",
+            f"merged={self.merged}",
+            f"purged={self.purged}",
+            f"compressed={self.compressed}",
             f"strengthened={self.strengthened}",
             f"duration={self.duration_ms:.0f}ms",
         ]
@@ -100,8 +106,17 @@ class SleepConsolidation:
         # Stage 4: Apply forgetting curve
         await self._stage4_forgetting_curve(report)
 
-        # Stage 5: Strengthen frequently accessed memories
-        await self._stage5_strengthen(report)
+        # Stage 5: Merge near-duplicate memories
+        await self._stage5_merge_duplicates(report)
+
+        # Stage 6: Purge archived memories
+        await self._stage6_purge_archived(report)
+
+        # Stage 7: Compress very old memory content
+        await self._stage7_compress_content(report)
+
+        # Stage 8: Strengthen frequently accessed memories
+        await self._stage8_strengthen(report)
 
         report.duration_ms = (time.monotonic() - start) * 1000
         return report
@@ -276,9 +291,100 @@ class SleepConsolidation:
         except Exception as e:
             report.errors.append(f"stage4: {e}")
 
-    # ── Stage 5: Strengthen ─────────────────────────────────────
+    # ── Stage 5: Merge near-duplicate memories ──────────────────
 
-    async def _stage5_strengthen(self, report: ConsolidationReport) -> None:
+    async def _stage5_merge_duplicates(self, report: ConsolidationReport) -> None:
+        """Find and merge near-duplicate memories.
+
+        If two episodic memories have very similar content, keep
+        only the one with higher importance (compression ratio N→1).
+        """
+        try:
+            items = await self._backend.list(
+                memory_types=[MemoryType.EPISODIC, MemoryType.SEMANTIC],
+                limit=200,
+                sort_by="created_at",
+                sort_desc=True,
+            )
+
+            seen_hashes: Dict[str, List[MemoryItem]] = {}
+            for item in items:
+                # Create a simple content fingerprint: first 50 chars + keywords
+                fingerprint = item.content[:50].lower().strip()
+                if fingerprint not in seen_hashes:
+                    seen_hashes[fingerprint] = []
+                seen_hashes[fingerprint].append(item)
+
+            for fingerprint, duplicates in seen_hashes.items():
+                if len(duplicates) < 2:
+                    continue
+                # Keep the one with highest importance
+                duplicates.sort(key=lambda i: i.importance, reverse=True)
+                keeper = duplicates[0]
+                for dup in duplicates[1:]:
+                    # Transfer associations from duplicate to keeper
+                    assoc = await self._backend.get_associated(dup.id, max_depth=1)
+                    for source_id, strength in assoc.items():
+                        await self._backend.add_association(keeper.id, source_id,
+                                                             max(strength, 0.5))
+                    # Delete the duplicate
+                    await self._backend.delete(dup.id)
+                    report.merged += 1
+        except Exception as e:
+            report.errors.append(f"stage5(merge): {e}")
+
+    # ── Stage 6: Purge archived memories ───────────────────────
+
+    async def _stage6_purge_archived(self, report: ConsolidationReport) -> None:
+        """Permanently delete archived memories that haven't been
+        accessed in a long time.
+
+        Archived memories are "forgotten" — after 7+ days without
+        access, they're permanently removed to free storage.
+        """
+        try:
+            archived = await self._backend.list(
+                memory_types=[MemoryType.EPISODIC, MemoryType.SEMANTIC, MemoryType.PROCEDURAL],
+                limit=500,
+                sort_by="last_accessed_at",
+                sort_desc=False,
+            )
+            from datetime import datetime, timezone, timedelta
+            cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+
+            for item in archived:
+                if item.consolidation_stage == ConsolidationStage.ARCHIVED:
+                    if item.last_accessed_at < cutoff:
+                        await self._backend.delete(item.id)
+                        report.purged += 1
+        except Exception as e:
+            report.errors.append(f"stage6(purge): {e}")
+
+    # ── Stage 7: Compress old memory content ───────────────────
+
+    async def _stage7_compress_content(self, report: ConsolidationReport) -> None:
+        """Truncate very long content from old, low-importance memories
+        to save storage space."""
+        try:
+            items = await self._backend.list(
+                limit=200,
+                sort_by="created_at",
+                sort_desc=False,
+            )
+            for item in items:
+                if item.importance < 0.3 and len(item.content) > 200:
+                    item.content = item.content[:150] + "... [compressed]"
+                    try:
+                        await self._backend.update(item)
+                        report.compressed += 1
+                    except Exception:
+                        pass
+        except Exception as e:
+            report.errors.append(f"stage7(compress): {e}")
+
+    # ── Stage 8: Strengthen ─────────────────────────────────────
+
+    async def _stage8_strengthen(self, report: ConsolidationReport) -> None:
         """Strengthen frequently accessed memories via simulated
         rehearsal during sleep."""
         try:

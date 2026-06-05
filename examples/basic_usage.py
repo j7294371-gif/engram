@@ -1,9 +1,9 @@
-"""Basic usage example for the engram memory system.
+"""Basic usage example for the memore memory system.
 
 Run with: python examples/basic_usage.py
 """
 
-from engram import AgentMemory
+from memore import AgentMemory
 
 
 def main():

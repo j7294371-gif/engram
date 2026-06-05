@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import pytest
 
-from engram.exceptions import DuplicateMemoryError, MemoryNotFoundError
-from engram.memory.enums import MemoryType
-from engram.memory.item import MemoryItem
-from engram.storage.in_memory import InMemoryBackend
+from memore.exceptions import DuplicateMemoryError, MemoryNotFoundError
+from memore.memory.enums import MemoryType
+from memore.memory.item import MemoryItem
+from memore.storage.in_memory import InMemoryBackend
 
 
 @pytest.fixture
@@ -105,7 +105,7 @@ class TestSearch:
         assert results[0].id == "sem_1"
 
     async def test_search_excludes_archived(self, backend: InMemoryBackend):
-        from engram.memory.enums import ConsolidationStage
+        from memore.memory.enums import ConsolidationStage
         item = MemoryItem(id="arch_1", content="old stuff", memory_type=MemoryType.EPISODIC,
                           consolidation_stage=ConsolidationStage.ARCHIVED)
         await backend.store(item)

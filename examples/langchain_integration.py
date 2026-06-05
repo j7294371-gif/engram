@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from engram import AgentMemory
+from memore import AgentMemory
 
 
 # ── Custom LangChain Memory Wrapper ──────────────────────────────
@@ -34,10 +34,10 @@ class EngramLangChainMemory:
     def __init__(
         self,
         session_id: str = "default",
-        engram_memory: AgentMemory | None = None,
+        memore_memory: AgentMemory | None = None,
     ) -> None:
         self.session_id = session_id
-        self._memory = engram_memory or AgentMemory()
+        self._memory = memore_memory or AgentMemory()
         self._turn_count = 0
 
     @property

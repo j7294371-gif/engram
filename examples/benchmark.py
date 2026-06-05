@@ -1,4 +1,4 @@
-"""Performance benchmark for engram memory system.
+"""Performance benchmark for memore memory system.
 
 Measures:
 - Write throughput (memories/sec)
@@ -18,7 +18,7 @@ import time
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
-from engram import AgentMemory
+from memore import AgentMemory
 
 
 def benchmark_write_throughput(count: int = 1000) -> dict:

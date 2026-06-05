@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from engram.memory.enums import ConsolidationStage, MemoryType
-from engram.memory.item import MemoryItem
+from memore.memory.enums import ConsolidationStage, MemoryType
+from memore.memory.item import MemoryItem
 
 
 class TestMemoryItemCreation:

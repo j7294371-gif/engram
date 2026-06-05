@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import pytest
 
-from engram import AgentMemory, Config
-from engram.memory.enums import MemoryType
-from engram.memory.item import MemoryItem
+from memore import AgentMemory, Config
+from memore.memory.enums import MemoryType
+from memore.memory.item import MemoryItem
 
 
 @pytest.fixture
@@ -133,7 +133,7 @@ class TestSearchAndTag:
         assert "review" in item.tags
 
     def test_forget_archives(self, memory: AgentMemory):
-        from engram.memory.enums import ConsolidationStage
+        from memore.memory.enums import ConsolidationStage
         mid = memory.remember("To be forgotten", memory_type="episodic")
         memory.forget(mid)
         item = memory.get(mid)

@@ -1,21 +1,21 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────
-# Push engram to GitHub — one script to publish the project
+# Push memore to GitHub — one script to publish the project
 # ─────────────────────────────────────────────────────────────
 # Usage:
 #   1.  cd scripts/ && bash push_to_github.sh
 #   2.  Follow the browser login prompt (if needed)
-#   3.  Done — your project is live at github.com/engram-memory/engram
+#   3.  Done — your project is live at github.com/j7294371-gif/memore
 # ─────────────────────────────────────────────────────────────
 
 set -e
 
-REPO_NAME="engram"
+REPO_NAME="memore"
 GITHUB_USER="j7294371"
 REMOTE_URL="git@github.com:${GITHUB_USER}/${REPO_NAME}.git"
 
 echo "============================================"
-echo " 🚀  Publishing engram to GitHub"
+echo " 🚀  Publishing memore to GitHub"
 echo "============================================"
 echo ""
 
@@ -92,5 +92,5 @@ echo " 📦  Install from GitHub:"
 echo "     pip install git+https://github.com/${GITHUB_USER}/${REPO_NAME}.git"
 echo ""
 echo " 📦  Or after PyPI release:"
-echo "     pip install engram"
+echo "     pip install memore"
 echo "============================================"

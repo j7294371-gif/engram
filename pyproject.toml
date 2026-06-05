@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "engram"
+name = "memore"
 version = "0.1.0a1"
 description = "Biomimetic memory system for AI agents — sensory, working, episodic, semantic, and procedural memory with forgetting curves, consolidation, and associative retrieval."
 readme = "README.md"
@@ -57,19 +57,19 @@ dev = [
 ]
 
 [project.scripts]
-engram-mcp = "engram.mcp_server:main"
+memore-mcp = "memore.mcp_server:main"
 
 [project.urls]
-Homepage = "https://github.com/engram-memory/engram"
-Repository = "https://github.com/engram-memory/engram"
-Documentation = "https://github.com/j7294371-gif/engram"
+Homepage = "https://github.com/j7294371-gif/memore"
+Repository = "https://github.com/j7294371-gif/memore"
+Documentation = "https://github.com/j7294371-gif/memore"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["engram*"]
+include = ["memore*"]
 
 [tool.setuptools.package-data]
-engram = ["py.typed"]
+memore = ["py.typed"]
 
 [tool.ruff]
 target-version = "py310"
@@ -94,4 +94,4 @@ asyncio_mode = "auto"
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.coverage.run]
-source = ["src/engram"]
+source = ["src/memore"]

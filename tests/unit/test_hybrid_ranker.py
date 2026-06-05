@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from engram.memory.enums import MemoryType
-from engram.memory.item import MemoryItem
-from engram.retrieval.hybrid import HybridRanker, _cosine_similarity
+from memore.memory.enums import MemoryType
+from memore.memory.item import MemoryItem
+from memore.retrieval.hybrid import HybridRanker, _cosine_similarity
 
 
 class TestCosineSimilarity:

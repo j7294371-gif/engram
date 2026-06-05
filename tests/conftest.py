@@ -1,4 +1,4 @@
-"""Shared fixtures for engram tests."""
+"""Shared fixtures for memore tests."""
 
 from __future__ import annotations
 
@@ -7,10 +7,10 @@ from typing import AsyncGenerator
 
 import pytest
 
-from engram.config import Config
-from engram.memory.enums import MemoryType
-from engram.memory.item import MemoryItem
-from engram.storage.in_memory import InMemoryBackend
+from memore.config import Config
+from memore.memory.enums import MemoryType
+from memore.memory.item import MemoryItem
+from memore.storage.in_memory import InMemoryBackend
 
 
 @pytest.fixture

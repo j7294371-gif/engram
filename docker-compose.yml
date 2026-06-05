@@ -2,17 +2,17 @@ version: "3.9"
 
 services:
   # Engram memory service (standalone API server - coming in Phase 6)
-  engram:
+  memore:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
     volumes:
-      - engram_data:/app/data
+      - memore_data:/app/data
     environment:
       - ENGRAM_BACKEND=sqlite
-      - ENGRAM_DB_PATH=/app/data/engram.db
+      - ENGRAM_DB_PATH=/app/data/memore.db
       - ENGRAM_LOG_LEVEL=INFO
     restart: unless-stopped
 
@@ -32,14 +32,14 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: engram
+      POSTGRES_USER: memore
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
-      POSTGRES_DB: engram
+      POSTGRES_DB: memore
     volumes:
       - pgvector_data:/var/lib/postgresql/data
     restart: unless-stopped
 
 volumes:
-  engram_data:
+  memore_data:
   qdrant_data:
   pgvector_data:

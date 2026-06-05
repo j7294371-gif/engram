@@ -5,8 +5,8 @@ Thank you for your interest in contributing to Engram!
 ## Development Setup
 
 ```bash
-git clone https://github.com/engram-memory/engram.git
-cd engram
+git clone https://github.com/j7294371-gif/memore.git
+cd memore
 pip install -e ".[dev]"
 ```
 
@@ -20,7 +20,7 @@ pytest -v
 ruff check src/
 
 # Type check
-mypy src/engram/
+mypy src/memore/
 ```
 
 ## Pull Request Process

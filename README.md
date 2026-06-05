@@ -1,16 +1,16 @@
 # 🧠 Engram — Biomimetic Memory for AI Agents
 
-[![PyPI version](https://img.shields.io/pypi/v/engram?color=blue)](https://pypi.org/project/engram/)
-[![Python versions](https://img.shields.io/pypi/pyversions/engram)](https://pypi.org/project/engram/)
-[![CI](https://github.com/engram-memory/engram/actions/workflows/ci.yml/badge.svg)](https://github.com/engram-memory/engram/actions)
+[![PyPI version](https://img.shields.io/pypi/v/memore?color=blue)](https://pypi.org/project/memore/)
+[![Python versions](https://img.shields.io/pypi/pyversions/memore)](https://pypi.org/project/memore/)
+[![CI](https://github.com/j7294371-gif/memore/actions/workflows/ci.yml/badge.svg)](https://github.com/j7294371-gif/memore/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)]()
-[![PyPI Downloads](https://img.shields.io/pypi/dm/engram)](https://pypi.org/project/engram/)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/memore)](https://pypi.org/project/memore/)
 
 **Engram** gives AI agents a memory system inspired by the human brain. Not just RAG — a full biomimetic pipeline with sensory buffers, working memory, episodic/semantic/procedural stores, Ebbinghaus forgetting curves, sleep consolidation, emotional tagging, and associative retrieval.
 
 ```python
-from engram import AgentMemory
+from memore import AgentMemory
 
 memory = AgentMemory()
 memory.remember("User prefers Python over Java", memory_type="semantic")
@@ -47,11 +47,11 @@ Forgetting Curve ← Sleep Consolidation ← Associative Retrieval ↔ Emotion
 ## 🚀 Quick Start
 
 ```bash
-pip install engram
+pip install memore
 ```
 
 ```python
-from engram import AgentMemory
+from memore import AgentMemory
 
 # Create a memory system (default: in-memory backend)
 memory = AgentMemory()
@@ -85,19 +85,19 @@ print(f"Promoted: {report['promotions']}, Archived: {report['archived']}")
 
 ```bash
 # Core (zero dependencies)
-pip install engram
+pip install memore
 
 # With SQLite backend
-pip install engram[sqlite]
+pip install memore[sqlite]
 
 # With embedding support
-pip install engram[embeddings]
+pip install memore[embeddings]
 
 # All backends and embeddings
-pip install engram[all]
+pip install memore[all]
 
 # Development
-pip install engram[dev]
+pip install memore[dev]
 ```
 
 ## 🎯 API Overview
@@ -105,7 +105,7 @@ pip install engram[dev]
 ### Tier 1: Core (3 lines)
 
 ```python
-from engram import AgentMemory
+from memore import AgentMemory
 memory = AgentMemory()
 memory.remember("content", memory_type="episodic")
 results = memory.recall("query")
@@ -139,20 +139,20 @@ Engram can run as a **Model Context Protocol (MCP) server**, making it available
 
 ```bash
 # Start the MCP server
-python -m engram.mcp_server.server
+python -m memore.mcp_server.server
 
 # Or install globally
-pip install engram
-engram-mcp
+pip install memore
+memore-mcp
 ```
 
 Configure in Claude Code's `settings.json`:
 ```json
 {
   "mcpServers": {
-    "engram": {
+    "memore": {
       "command": "python",
-      "args": ["-m", "engram.mcp_server.server"]
+      "args": ["-m", "memore.mcp_server.server"]
     }
   }
 }
@@ -179,10 +179,10 @@ python examples/benchmark.py
 | Backend | Install | Best for |
 |---------|---------|----------|
 | InMemory | (built-in) | Testing, prototyping |
-| SQLite | `pip install engram` | Default, embedded |
-| ChromaDB | `pip install engram[chromadb]` | Lightweight vector search |
-| Qdrant | `pip install engram[qdrant]` | Production vector search |
-| pgvector | `pip install engram[pgvector]` | PostgreSQL users |
+| SQLite | `pip install memore` | Default, embedded |
+| ChromaDB | `pip install memore[chromadb]` | Lightweight vector search |
+| Qdrant | `pip install memore[qdrant]` | Production vector search |
+| pgvector | `pip install memore[pgvector]` | PostgreSQL users |
 
 ```python
 # Use a specific backend
@@ -191,22 +191,22 @@ memory = AgentMemory(backend="chromadb")
 
 ## 📖 Documentation
 
-Full documentation is available on [GitHub](https://github.com/j7294371-gif/engram).
+Full documentation is available on [GitHub](https://github.com/j7294371-gif/memore).
 
-- [Getting Started](https://github.com/j7294371-gif/engram#-quick-start)
-- [Memory Pipeline Guide](src/engram/pipeline/)
-- [Forgetting Curve](src/engram/memory/decay.py)
-- [Consolidation](src/engram/consolidation/sleep.py)
-- [Emotional Tagging](src/engram/emotion/tag.py)
-- [Associative Retrieval](src/engram/retrieval/)
-- [Backend Guide](src/engram/storage/)
-- [API Reference](src/engram/agent_memory.py)
+- [Getting Started](https://github.com/j7294371-gif/memore#-quick-start)
+- [Memory Pipeline Guide](src/memore/pipeline/)
+- [Forgetting Curve](src/memore/memory/decay.py)
+- [Consolidation](src/memore/consolidation/sleep.py)
+- [Emotional Tagging](src/memore/emotion/tag.py)
+- [Associative Retrieval](src/memore/retrieval/)
+- [Backend Guide](src/memore/storage/)
+- [API Reference](src/memore/agent_memory.py)
 - [Examples](examples/)
 
 ## 🧪 Testing
 
 ```bash
-pip install engram[dev]
+pip install memore[dev]
 pytest
 ```
 

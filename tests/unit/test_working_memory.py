@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from engram.memory.enums import MemoryType
-from engram.memory.item import MemoryItem
-from engram.pipeline.working_memory import WorkingMemory
+from memore.memory.enums import MemoryType
+from memore.memory.item import MemoryItem
+from memore.pipeline.working_memory import WorkingMemory
 
 
 @pytest.fixture

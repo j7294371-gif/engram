@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from engram.memory.decay import (
+from memore.memory.decay import (
     hours_until_forgotten,
     optimal_rehearsal_intervals,
     retrieval_probability,

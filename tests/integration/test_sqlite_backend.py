@@ -11,10 +11,10 @@ import tempfile
 
 import pytest
 
-from engram.exceptions import DuplicateMemoryError, MemoryNotFoundError
-from engram.memory.enums import ConsolidationStage, MemoryType
-from engram.memory.item import MemoryItem
-from engram.storage.sqlite import SQLiteBackend
+from memore.exceptions import DuplicateMemoryError, MemoryNotFoundError
+from memore.memory.enums import ConsolidationStage, MemoryType
+from memore.memory.item import MemoryItem
+from memore.storage.sqlite import SQLiteBackend
 
 
 @pytest.fixture

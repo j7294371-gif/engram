@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from engram.consolidation.sleep import SleepConsolidation, ConsolidationReport
-from engram.memory.enums import ConsolidationStage, MemoryType
-from engram.memory.item import MemoryItem
-from engram.storage.in_memory import InMemoryBackend
+from memore.consolidation.sleep import SleepConsolidation, ConsolidationReport
+from memore.memory.enums import ConsolidationStage, MemoryType
+from memore.memory.item import MemoryItem
+from memore.storage.in_memory import InMemoryBackend
 
 
 @pytest.fixture

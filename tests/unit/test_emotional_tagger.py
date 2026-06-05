@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from engram.emotion.tag import EmotionalTagger
+from memore.emotion.tag import EmotionalTagger
 
 
 class TestCategorize:

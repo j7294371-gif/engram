@@ -6,9 +6,9 @@ import time
 
 import pytest
 
-from engram.memory.enums import MemoryType
-from engram.memory.item import MemoryItem
-from engram.pipeline.sensory_buffer import SensoryBuffer
+from memore.memory.enums import MemoryType
+from memore.memory.item import MemoryItem
+from memore.pipeline.sensory_buffer import SensoryBuffer
 
 
 @pytest.fixture

@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg/
+.eggs/
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.cache/
+
+# Type checking
+.mypy_cache/
+.types_cache/
+
+# Documentation
+site/
+docs/_build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Migration backups
+*.db-backup
+
+# Local settings
+*.local.json

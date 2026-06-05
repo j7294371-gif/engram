@@ -37,13 +37,20 @@ class Config:
     semantic_decay_rate: float = 0.05
     procedural_decay_rate: float = 0.08
     rehearsal_strength_boost: float = 0.1
-    forgetting_threshold: float = 0.05
+    forgetting_threshold: float = 0.1      # 调高：低于10%概率 → 视为遗忘
+
+    # ── Storage Quota & Pruning ─────────────────────────────────
+    max_items: int = 10000                 # 硬上限，超过后自动裁剪
+    prune_below_importance: float = 0.1    # 裁剪时移除重要性低于此值的记忆
+    keep_at_most: int = 8000               # 裁剪后保留的数量
+    auto_archive_on_recall: bool = True    # 检索时自动归档低概率记忆
 
     # ── Consolidation ───────────────────────────────────────────
     auto_consolidate: bool = True
     consolidation_interval_minutes: int = 60
     promotion_importance_threshold: float = 0.7
     abstraction_min_sources: int = 3
+    operations_before_prune: int = 50      # 每N次操作触发一次自动整理
 
     # ── Retrieval ────────────────────────────────────────────────
     default_limit: int = 20

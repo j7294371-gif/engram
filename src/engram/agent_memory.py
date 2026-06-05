@@ -92,6 +92,9 @@ class AgentMemory:
             forgetting_threshold=self._config.forgetting_threshold,
         )
 
+        # Operation counter for auto-prune
+        self._op_count = 0
+
     # ──────────────────────────────────────────────────────────────
     # Tier 1: Core API
     # ──────────────────────────────────────────────────────────────
@@ -163,6 +166,7 @@ class AgentMemory:
                 import asyncio as _asyncio
                 _asyncio.run(self._ltm.store(item))
 
+        self._tick()
         return mid
 
     def recall(
@@ -286,14 +290,29 @@ class AgentMemory:
             mood_congruent=mood_congruent,
         )
 
-        # Deduplicate and touch
+        # Deduplicate, touch, and auto-archive decaying memories
         final: List[MemoryItem] = []
         seen = set()
         for item, _ in ranked:
             if item.id not in seen:
                 seen.add(item.id)
+
+                # Auto-archive: if memory is below threshold, don't return it
+                if self._config.auto_archive_on_recall and item.is_forgotten(self._config.forgetting_threshold):
+                    item.consolidation_stage = ConsolidationStage.ARCHIVED
+                    item.importance = 0.0
+                    import asyncio
+                    try:
+                        asyncio.run(self._backend.update(item))
+                    except RuntimeError:
+                        pass
+                    continue  # skip — this memory is too far gone
+
                 item.touch()
                 final.append(item)
+
+        # Tick operation counter (triggers prune if threshold reached)
+        self._tick()
 
         return final[:limit]
 
@@ -622,6 +641,42 @@ class AgentMemory:
             pass
 
     # ── Event hooks ──────────────────────────────────────────────
+
+    def _tick(self) -> None:
+        """Increment operation counter, auto-prune if threshold reached."""
+        self._op_count += 1
+        if self._config.auto_consolidate and self._op_count >= self._config.operations_before_prune:
+            self._op_count = 0
+            self._maybe_prune()
+
+    def _maybe_prune(self) -> None:
+        """Enforce max_items storage quota.
+
+        When exceeded, archives low-importance memories until
+        count drops to ``keep_at_most``.
+        """
+        import asyncio
+        try:
+            stats = asyncio.run(self._backend.stats())
+            total = stats.get("total", 0)
+            if total <= self._config.max_items:
+                return
+
+            # Fetch low-importance items and archive them
+            to_archive = asyncio.run(
+                self._backend.list(
+                    sort_by="importance",
+                    sort_desc=False,
+                    limit=total - self._config.keep_at_most,
+                    importance_min=0.0,
+                )
+            )
+            for item in to_archive:
+                if item.importance <= self._config.prune_below_importance:
+                    item.consolidation_stage = ConsolidationStage.ARCHIVED
+                    asyncio.run(self._backend.update(item))
+        except RuntimeError:
+            pass
 
     def _on_working_evict(self, item: MemoryItem) -> None:
         """Called when an item is evicted from working memory.

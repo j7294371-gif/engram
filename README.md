@@ -133,6 +133,47 @@ memory.rehearse(id)                          # Boost strength
 stats = memory.stats()
 ```
 
+## 🔌 MCP Server
+
+Engram can run as a **Model Context Protocol (MCP) server**, making it available to any MCP-compatible client (Claude Code, Cursor, Windsurf, etc.).
+
+```bash
+# Start the MCP server
+python -m engram.mcp_server.server
+
+# Or install globally
+pip install engram
+engram-mcp
+```
+
+Configure in Claude Code's `settings.json`:
+```json
+{
+  "mcpServers": {
+    "engram": {
+      "command": "python",
+      "args": ["-m", "engram.mcp_server.server"]
+    }
+  }
+}
+```
+
+**Available tools:** `remember`, `recall`, `search`, `forget`, `consolidate`, `stats`, `focus`, `get_context`
+
+## 📊 Benchmark
+
+```bash
+python examples/benchmark.py
+```
+
+| Metric | Value |
+|--------|-------|
+| Write throughput (SQLite) | ~1,200/sec |
+| Write throughput (Memory) | ~1,000/sec |
+| Recall precision | 80% (500 items) |
+| Avg query latency | 3.2ms |
+| Consolidation (light) | 16ms for 500 items |
+
 ## 🔧 Backends
 
 | Backend | Install | Best for |

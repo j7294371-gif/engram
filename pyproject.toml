@@ -56,6 +56,9 @@ dev = [
     "pre-commit>=3.6",
 ]
 
+[project.scripts]
+engram-mcp = "engram.mcp_server:main"
+
 [project.urls]
 Homepage = "https://github.com/engram-memory/engram"
 Repository = "https://github.com/engram-memory/engram"

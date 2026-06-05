@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import datetime, timezone
 
 
 def retrieval_probability(
     strength: float,
     decay_rate: float,
     last_rehearsed_at: datetime,
-    at_time: Optional[datetime] = None,
+    at_time: datetime | None = None,
 ) -> float:
     """Ebbinghaus forgetting curve.
 

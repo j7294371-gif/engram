@@ -7,9 +7,9 @@ StorageBackend and adds pipeline-specific logic on top.
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional, Set
+from collections.abc import Callable
 
-from memore.memory.enums import ConsolidationStage, MemoryType, RetrievalMode
+from memore.memory.enums import ConsolidationStage, MemoryType
 from memore.memory.item import MemoryItem
 from memore.storage.base import StorageBackend
 
@@ -24,7 +24,7 @@ class LongTermMemory:
     """
 
     # Memory types managed by this store
-    MANAGED_TYPES: Set[MemoryType] = {
+    MANAGED_TYPES: set[MemoryType] = {
         MemoryType.EPISODIC,
         MemoryType.SEMANTIC,
         MemoryType.PROCEDURAL,
@@ -33,7 +33,7 @@ class LongTermMemory:
     def __init__(
         self,
         backend: StorageBackend,
-        on_promote: Optional[Callable[[MemoryItem], None]] = None,
+        on_promote: Callable[[MemoryItem], None] | None = None,
     ) -> None:
         self._backend = backend
         self._on_promote = on_promote
@@ -53,7 +53,7 @@ class LongTermMemory:
             )
         return await self._backend.store(item)
 
-    async def batch_store(self, items: List[MemoryItem]) -> None:
+    async def batch_store(self, items: list[MemoryItem]) -> None:
         """Bulk store multiple long-term items."""
         valid = [i for i in items if i.memory_type in self.MANAGED_TYPES]
         if valid:
@@ -61,20 +61,20 @@ class LongTermMemory:
 
     # ── Retrieve ─────────────────────────────────────────────────
 
-    async def get(self, memory_id: str) -> Optional[MemoryItem]:
+    async def get(self, memory_id: str) -> MemoryItem | None:
         """Retrieve a single memory by ID."""
         return await self._backend.get(memory_id)
 
     async def search(
         self,
         query: str,
-        query_embedding: Optional[List[float]] = None,
-        memory_types: Optional[List[MemoryType]] = None,
+        query_embedding: list[float] | None = None,
+        memory_types: list[MemoryType] | None = None,
         limit: int = 20,
         threshold: float = 0.0,
         mode: str = "hybrid",
         **kwargs,
-    ) -> List[MemoryItem]:
+    ) -> list[MemoryItem]:
         """Search across long-term memory stores."""
         # Normalise memory_types
         if memory_types is None:
@@ -122,7 +122,8 @@ class LongTermMemory:
         item.importance = item.recompute_importance()
 
         # Assign a new ID for the episodic copy
-        import secrets, time
+        import secrets
+        import time
 
         item.id = f"ep_{int(time.time() * 1000):x}_{secrets.token_hex(6)}"
 
@@ -135,6 +136,6 @@ class LongTermMemory:
         """Update an existing long-term memory item."""
         await self._backend.update(item)
 
-    async def stats(self) -> Dict:
+    async def stats(self) -> dict:
         """Return storage statistics."""
         return await self._backend.stats()

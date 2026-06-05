@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from memore.memory.enums import ConsolidationStage, MemoryType
 
@@ -68,7 +68,7 @@ class MemoryItem:
     id: str
     content: str
     memory_type: MemoryType
-    memory_subtype: Optional[str] = None
+    memory_subtype: str | None = None
 
     # Temporal
     created_at: datetime = field(default_factory=_now_utc)
@@ -87,25 +87,25 @@ class MemoryItem:
     # Importance & attention
     importance: float = 0.5
     attention_weight: float = 0.0
-    capacity_slot: Optional[int] = None
+    capacity_slot: int | None = None
 
     # Associations
-    associations: Dict[str, float] = field(default_factory=dict)
+    associations: dict[str, float] = field(default_factory=dict)
 
     # Consolidation
     consolidation_stage: ConsolidationStage = ConsolidationStage.RAW
-    consolidated_at: Optional[datetime] = None
-    promoted_from: Optional[str] = None
-    abstraction_source_ids: List[str] = field(default_factory=list)
+    consolidated_at: datetime | None = None
+    promoted_from: str | None = None
+    abstraction_source_ids: list[str] = field(default_factory=list)
 
     # Embedding
-    embedding: Optional[List[float]] = None
-    embedding_model: Optional[str] = None
+    embedding: list[float] | None = None
+    embedding_model: str | None = None
 
     # Metadata
-    tags: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    source: Optional[str] = None
+    tags: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    source: str | None = None
 
     def __post_init__(self) -> None:
         """Apply defaults and validate constraints after initialization."""
@@ -119,7 +119,7 @@ class MemoryItem:
 
     # ── Forgetting curve (Ebbinghaus) ──────────────────────────
 
-    def retrieval_probability(self, at_time: Optional[datetime] = None) -> float:
+    def retrieval_probability(self, at_time: datetime | None = None) -> float:
         """Ebbinghaus forgetting curve: P = S × exp(−d × Δt)
 
         Returns the probability that this memory can be retrieved
@@ -129,7 +129,7 @@ class MemoryItem:
         hours = delta / 3600.0
         return self.strength * math.exp(-self.decay_rate * hours)
 
-    def is_forgotten(self, threshold: float = 0.05, at_time: Optional[datetime] = None) -> bool:
+    def is_forgotten(self, threshold: float = 0.05, at_time: datetime | None = None) -> bool:
         """Has this memory decayed below the forgetting threshold?"""
         return self.retrieval_probability(at_time) < threshold
 
@@ -195,7 +195,7 @@ class MemoryItem:
         self.last_accessed_at = _now_utc()
         self.access_count += 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-compatible dictionary."""
         return {
             "id": self.id,
@@ -219,7 +219,7 @@ class MemoryItem:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MemoryItem":
+    def from_dict(cls, data: dict[str, Any]) -> MemoryItem:
         """Deserialize from a dictionary produced by ``to_dict``."""
         from copy import deepcopy
 

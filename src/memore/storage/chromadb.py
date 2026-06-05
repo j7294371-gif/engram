@@ -5,8 +5,10 @@ Requires the ``chromadb`` package: ``pip install memore[chromadb]``
 
 from __future__ import annotations
 
+import builtins
+from collections.abc import Collection
 from datetime import datetime, timezone
-from typing import Any, Collection, Dict, List, Optional
+from typing import Any
 
 from memore.exceptions import DuplicateMemoryError, MemoryNotFoundError
 from memore.memory.enums import ConsolidationStage, MemoryType
@@ -73,7 +75,7 @@ class ChromaDBBackend(StorageBackend):
         )
         return item.id
 
-    async def batch_store(self, items: List[MemoryItem]) -> None:
+    async def batch_store(self, items: builtins.list[MemoryItem]) -> None:
         self._ensure_ready()
         for item in items:
             existing = self._collection.get(ids=[item.id])
@@ -91,7 +93,7 @@ class ChromaDBBackend(StorageBackend):
         embeddings = [i.embedding for i in items if i.embedding] or None
         self._collection.add(ids=ids, documents=docs, metadatas=metas, embeddings=embeddings)
 
-    async def get(self, memory_id: str) -> Optional[MemoryItem]:
+    async def get(self, memory_id: str) -> MemoryItem | None:
         self._ensure_ready()
         result = self._collection.get(ids=[memory_id])
         if not result or not result["ids"]:
@@ -113,15 +115,15 @@ class ChromaDBBackend(StorageBackend):
     async def search(
         self,
         query: str,
-        query_embedding: Optional[List[float]] = None,
-        memory_types: Optional[Collection[MemoryType]] = None,
+        query_embedding: builtins.list[float] | None = None,
+        memory_types: Collection[MemoryType] | None = None,
         limit: int = 20,
         threshold: float = 0.0,
         include_archived: bool = False,
         **metadata_filters: Any,
-    ) -> List[MemoryItem]:
+    ) -> builtins.list[MemoryItem]:
         self._ensure_ready()
-        where: Optional[Dict] = None
+        where: dict | None = None
         clauses = []
         if memory_types:
             types = [t.value for t in memory_types]
@@ -149,7 +151,7 @@ class ChromaDBBackend(StorageBackend):
 
     async def list(
         self,
-        memory_types: Optional[Collection[MemoryType]] = None,
+        memory_types: Collection[MemoryType] | None = None,
         importance_min: float = 0.0,
         limit: int = 100,
         offset: int = 0,
@@ -157,9 +159,9 @@ class ChromaDBBackend(StorageBackend):
         sort_desc: bool = True,
         include_archived: bool = False,
         **metadata_filters: Any,
-    ) -> List[MemoryItem]:
+    ) -> builtins.list[MemoryItem]:
         self._ensure_ready()
-        where: Optional[Dict] = None
+        where: dict | None = None
         clauses = [{"importance": {"$gte": importance_min}}]
         if memory_types:
             types = [t.value for t in memory_types]
@@ -185,13 +187,13 @@ class ChromaDBBackend(StorageBackend):
     async def remove_association(self, source_id: str, target_id: str) -> None:
         pass
 
-    async def get_associated(self, memory_id: str, max_depth: int = 2, min_strength: float = 0.0) -> Dict[str, float]:
+    async def get_associated(self, memory_id: str, max_depth: int = 2, min_strength: float = 0.0) -> dict[str, float]:
         return {}
 
-    async def get_decaying(self, threshold: float = 0.3, limit: int = 100) -> List[MemoryItem]:
+    async def get_decaying(self, threshold: float = 0.3, limit: int = 100) -> builtins.list[MemoryItem]:
         return []  # ChromaDB cannot compute forgetting curve
 
-    async def stats(self) -> Dict[str, Any]:
+    async def stats(self) -> dict[str, Any]:
         self._ensure_ready()
         count = self._collection.count()
         return {"total": count, "associations": 0}

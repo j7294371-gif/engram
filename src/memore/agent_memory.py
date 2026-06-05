@@ -7,22 +7,22 @@ emotional tagging, and associative retrieval.
 
 from __future__ import annotations
 
+import contextlib
 import secrets
 import time
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from memore.config import Config
+from memore.consolidation.sleep import ConsolidationReport, SleepConsolidation
 from memore.embedding import NoopEmbeddingProvider
 from memore.embedding.base import EmbeddingProvider
-from memore.memory.enums import ConsolidationStage, MemoryType, RetrievalMode
+from memore.memory.enums import ConsolidationStage, MemoryType
 from memore.memory.item import MemoryItem
 from memore.pipeline.long_term_memory import LongTermMemory
 from memore.pipeline.sensory_buffer import SensoryBuffer
 from memore.pipeline.working_memory import WorkingMemory
-from memore.consolidation.sleep import SleepConsolidation, ConsolidationReport
 from memore.retrieval.hybrid import HybridRanker
-from memore.storage import StorageBackend, get_backend, register_backend, list_backends
+from memore.storage import StorageBackend, get_backend, register_backend
 from memore.storage.in_memory import InMemoryBackend
 
 
@@ -44,9 +44,9 @@ class AgentMemory:
 
     def __init__(
         self,
-        backend: Optional[Union[str, StorageBackend]] = None,
-        embedding: Optional[EmbeddingProvider] = None,
-        config: Optional[Config] = None,
+        backend: str | StorageBackend | None = None,
+        embedding: EmbeddingProvider | None = None,
+        config: Config | None = None,
         auto_register: bool = True,
     ) -> None:
         if auto_register:
@@ -104,13 +104,13 @@ class AgentMemory:
         content: str,
         memory_type: str = "episodic",
         *,
-        tags: Optional[List[str]] = None,
-        source: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        emotional_valence: Optional[float] = None,
-        emotional_arousal: Optional[float] = None,
-        importance: Optional[float] = None,
-        associations: Optional[Dict[str, float]] = None,
+        tags: list[str] | None = None,
+        source: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        emotional_valence: float | None = None,
+        emotional_arousal: float | None = None,
+        importance: float | None = None,
+        associations: dict[str, float] | None = None,
     ) -> str:
         """Store a memory.
 
@@ -171,17 +171,17 @@ class AgentMemory:
 
     def recall(
         self,
-        query: Optional[str] = None,
+        query: str | None = None,
         *,
-        memory_types: Optional[Union[str, List[str]]] = None,
+        memory_types: str | list[str] | None = None,
         limit: int = 10,
         threshold: float = 0.1,
         include_sensory: bool = False,
         include_working: bool = True,
         include_archived: bool = False,
-        mood_congruent: Optional[tuple[float, float]] = None,
+        mood_congruent: tuple[float, float] | None = None,
         **metadata_filters: Any,
-    ) -> List[MemoryItem]:
+    ) -> list[MemoryItem]:
         """Retrieve memories relevant to the query.
 
         Uses hybrid retrieval across all active pipeline stages,
@@ -213,14 +213,14 @@ class AgentMemory:
             type_filter = [MT(t) for t in memory_types]
 
         # Compute query embedding if we have a real embedding provider
-        query_embedding: Optional[List[float]] = None
+        query_embedding: list[float] | None = None
         if query and not isinstance(self._embedding, NoopEmbeddingProvider):
             try:
                 query_embedding = self._embedding.sync_embed(query)
             except Exception:
                 query_embedding = None
 
-        results: List[MemoryItem] = []
+        results: list[MemoryItem] = []
 
         # Collect from each active pipeline stage
         if include_sensory:
@@ -265,7 +265,7 @@ class AgentMemory:
                 seen_ids.add(i.id)
 
         # Compute spreading activation scores from top results
-        activation_scores: Optional[Dict[str, float]] = None
+        activation_scores: dict[str, float] | None = None
         if results and len(results) > 1:
             top_ids = [r.id for r in results[:min(3, len(results))]]
             try:
@@ -291,7 +291,7 @@ class AgentMemory:
         )
 
         # Deduplicate, touch, and auto-archive decaying memories
-        final: List[MemoryItem] = []
+        final: list[MemoryItem] = []
         seen = set()
         for item, _ in ranked:
             if item.id not in seen:
@@ -302,10 +302,8 @@ class AgentMemory:
                     item.consolidation_stage = ConsolidationStage.ARCHIVED
                     item.importance = 0.0
                     import asyncio
-                    try:
+                    with contextlib.suppress(RuntimeError):
                         asyncio.run(self._backend.update(item))
-                    except RuntimeError:
-                        pass
                     continue  # skip — this memory is too far gone
 
                 item.touch()
@@ -316,7 +314,7 @@ class AgentMemory:
 
         return final[:limit]
 
-    def get_context(self, window_size: int = 7, *, include_sensory: bool = False) -> List[MemoryItem]:
+    def get_context(self, window_size: int = 7, *, include_sensory: bool = False) -> list[MemoryItem]:
         """Get the current working memory context for LLM consumption.
 
         Returns items ranked by attention weight. This is the data
@@ -344,10 +342,10 @@ class AgentMemory:
         query: str,
         *,
         mode: str = "hybrid",
-        memory_types: Optional[Union[str, List[str]]] = None,
+        memory_types: str | list[str] | None = None,
         limit: int = 20,
         **kwargs,
-    ) -> List[MemoryItem]:
+    ) -> list[MemoryItem]:
         """Unified search across all memory stores.
 
         Args:
@@ -381,7 +379,7 @@ class AgentMemory:
         except RuntimeError:
             return []
 
-    def get(self, memory_id: str) -> Optional[MemoryItem]:
+    def get(self, memory_id: str) -> MemoryItem | None:
         """Retrieve a single memory by ID."""
         # Check pipeline stages first
         item = self._sensory.get(memory_id)
@@ -410,10 +408,8 @@ class AgentMemory:
             return
         if item is not None:
             item.consolidation_stage = ConsolidationStage.ARCHIVED
-            try:
+            with contextlib.suppress(RuntimeError):
                 asyncio.run(self._backend.update(item))
-            except RuntimeError:
-                pass
 
     def tag(self, memory_id: str, *tags: str) -> None:
         """Add tags to an existing memory."""
@@ -426,10 +422,8 @@ class AgentMemory:
             existing = set(item.tags)
             existing.update(tags)
             item.tags = list(existing)
-            try:
+            with contextlib.suppress(RuntimeError):
                 asyncio.run(self._backend.update(item))
-            except RuntimeError:
-                pass
 
     def tag_emotion(self, memory_id: str, valence: float, arousal: float) -> None:
         """Tag a memory with emotional dimensions.
@@ -447,10 +441,8 @@ class AgentMemory:
         if item is not None:
             item.valence = max(-1.0, min(1.0, valence))
             item.arousal = max(0.0, min(1.0, arousal))
-            try:
+            with contextlib.suppress(RuntimeError):
                 asyncio.run(self._backend.update(item))
-            except RuntimeError:
-                pass
 
     # ──────────────────────────────────────────────────────────────
     # Tier 3: Advanced API
@@ -477,10 +469,8 @@ class AgentMemory:
         This creates a directed edge in the association graph.
         """
         import asyncio
-        try:
+        with contextlib.suppress(RuntimeError):
             asyncio.run(self._backend.add_association(source_id, target_id, strength))
-        except RuntimeError:
-            pass
 
     def retrieve_associated(
         self,
@@ -488,7 +478,7 @@ class AgentMemory:
         max_depth: int = 2,
         min_strength: float = 0.1,
         limit: int = 20,
-    ) -> List[tuple[MemoryItem, float]]:
+    ) -> list[tuple[MemoryItem, float]]:
         """Spreading activation from a seed memory.
 
         Returns associated memories with their activation strengths.
@@ -510,7 +500,7 @@ class AgentMemory:
         except RuntimeError:
             return []
 
-        results: List[tuple[MemoryItem, float]] = []
+        results: list[tuple[MemoryItem, float]] = []
         for aid, activation in associations.items():
             try:
                 item = asyncio.run(self._backend.get(aid))
@@ -534,12 +524,10 @@ class AgentMemory:
             return
         if item is not None:
             item.rehearse(strength_boost=self._config.rehearsal_strength_boost)
-            try:
+            with contextlib.suppress(RuntimeError):
                 asyncio.run(self._backend.update(item))
-            except RuntimeError:
-                pass
 
-    def consolidate(self, *, force: bool = False) -> Dict[str, Any]:
+    def consolidate(self, *, force: bool = False) -> dict[str, Any]:
         """Run incremental consolidation.
 
         Actions:
@@ -552,7 +540,7 @@ class AgentMemory:
         Returns:
             A report dict with actions taken.
         """
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "promotions": 0,
             "archived": 0,
             "forgotten_count": 0,
@@ -562,10 +550,8 @@ class AgentMemory:
         for item in self._working.get_context(window_size=self._config.working_memory_capacity):
             if item.importance >= self._config.promotion_importance_threshold:
                 import asyncio
-                try:
+                with contextlib.suppress(RuntimeError):
                     asyncio.run(self._ltm.promote_from_working(item))
-                except RuntimeError:
-                    pass
                 report["promotions"] += 1
 
         # Tag forgotten memories as archived
@@ -581,10 +567,8 @@ class AgentMemory:
             item.consolidation_stage = ConsolidationStage.ARCHIVED
             item.importance = 0.0
             import asyncio
-            try:
+            with contextlib.suppress(RuntimeError):
                 asyncio.run(self._backend.update(item))
-            except RuntimeError:
-                pass
             report["archived"] += 1
 
         report["forgotten_count"] = len(decaying)
@@ -617,7 +601,7 @@ class AgentMemory:
                 errors=["Could not run sleep consolidation in current event loop"]
             )
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         """Return system statistics."""
         import asyncio
         try:
@@ -635,10 +619,8 @@ class AgentMemory:
         self._sensory.clear()
         self._working.clear()
         import asyncio
-        try:
+        with contextlib.suppress(RuntimeError):
             asyncio.run(self._backend.clear())
-        except RuntimeError:
-            pass
 
     # ── Event hooks ──────────────────────────────────────────────
 
@@ -688,10 +670,8 @@ class AgentMemory:
             return
         if item.importance >= self._config.promotion_importance_threshold:
             import asyncio
-            try:
+            with contextlib.suppress(RuntimeError):
                 asyncio.run(self._ltm.promote_from_working(item))
-            except RuntimeError:
-                pass
 
 
 # ── Helpers ──────────────────────────────────────────────────────

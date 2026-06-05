@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import sys
 import traceback
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from memore import AgentMemory
 
@@ -33,14 +33,14 @@ def log(msg: str) -> None:
     print(f"[memore-mcp] {msg}", file=sys.stderr, flush=True)
 
 
-def send(message: Dict[str, Any]) -> None:
+def send(message: dict[str, Any]) -> None:
     """Send a JSON-RPC message over stdout."""
     line = json.dumps(message)
     sys.stdout.write(f"Content-Length: {len(line)}\r\n\r\n{line}")
     sys.stdout.flush()
 
 
-def read() -> Optional[Dict[str, Any]]:
+def read() -> dict[str, Any] | None:
     """Read a JSON-RPC message from stdin."""
     content_length = 0
     while True:
@@ -59,7 +59,7 @@ def read() -> Optional[Dict[str, Any]]:
 
 # ── Tool definitions ───────────────────────────────────────────
 
-TOOLS: List[Dict[str, Any]] = [
+TOOLS: list[dict[str, Any]] = [
     {
         "name": "remember",
         "description": "Store a memory for the current user/session.",
@@ -182,7 +182,7 @@ def _ensure_memory() -> AgentMemory:
     return memory
 
 
-def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Any:
+def handle_tool_call(name: str, arguments: dict[str, Any]) -> Any:
     """Execute a tool and return the result."""
     m = _ensure_memory()
 

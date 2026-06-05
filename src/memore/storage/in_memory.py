@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import math
+import builtins
 from collections import defaultdict
-from typing import Any, Collection, Dict, List, Optional, Set
+from collections.abc import Collection
+from typing import Any
 
 from memore.exceptions import DuplicateMemoryError, MemoryNotFoundError
 from memore.memory.enums import ConsolidationStage, MemoryType
@@ -25,9 +26,9 @@ class InMemoryBackend(StorageBackend):
     """
 
     def __init__(self) -> None:
-        self._items: Dict[str, MemoryItem] = {}
-        self._associations: Dict[str, Dict[str, float]] = defaultdict(dict)
-        self._tags: Dict[str, Set[str]] = defaultdict(set)
+        self._items: dict[str, MemoryItem] = {}
+        self._associations: dict[str, dict[str, float]] = defaultdict(dict)
+        self._tags: dict[str, set[str]] = defaultdict(set)
         self._initialized = False
 
     # ── Lifecycle ────────────────────────────────────────────────
@@ -54,11 +55,11 @@ class InMemoryBackend(StorageBackend):
             self._tags[tag].add(item.id)
         return item.id
 
-    async def batch_store(self, items: List[MemoryItem]) -> None:
+    async def batch_store(self, items: builtins.list[MemoryItem]) -> None:
         for item in items:
             await self.store(item)
 
-    async def get(self, memory_id: str) -> Optional[MemoryItem]:
+    async def get(self, memory_id: str) -> MemoryItem | None:
         return self._items.get(memory_id)
 
     async def update(self, item: MemoryItem) -> None:
@@ -87,13 +88,13 @@ class InMemoryBackend(StorageBackend):
     async def search(
         self,
         query: str,
-        query_embedding: Optional[List[float]] = None,
-        memory_types: Optional[Collection[MemoryType]] = None,
+        query_embedding: builtins.list[float] | None = None,
+        memory_types: Collection[MemoryType] | None = None,
         limit: int = 20,
         threshold: float = 0.0,
         include_archived: bool = False,
         **metadata_filters: Any,
-    ) -> List[MemoryItem]:
+    ) -> builtins.list[MemoryItem]:
         """Search by keyword matching against content and tags.
 
         In the InMemory backend without embeddings, search performs
@@ -101,7 +102,7 @@ class InMemoryBackend(StorageBackend):
         source fields as a basic keyword search.
         """
         query_lower = query.lower() if query else ""
-        results: List[MemoryItem] = []
+        results: list[MemoryItem] = []
 
         for item in self._items.values():
             # Apply filters
@@ -120,7 +121,7 @@ class InMemoryBackend(StorageBackend):
                     or any(query_lower in t.lower() for t in item.tags)
                     or (item.source and query_lower in item.source.lower())
                 ):
-                    score = _keyword_score(item, query_lower)
+                    _keyword_score(item, query_lower)
                     results.append(item)
             else:
                 results.append(item)
@@ -131,7 +132,7 @@ class InMemoryBackend(StorageBackend):
 
     async def list(
         self,
-        memory_types: Optional[Collection[MemoryType]] = None,
+        memory_types: Collection[MemoryType] | None = None,
         importance_min: float = 0.0,
         limit: int = 100,
         offset: int = 0,
@@ -139,8 +140,8 @@ class InMemoryBackend(StorageBackend):
         sort_desc: bool = True,
         include_archived: bool = False,
         **metadata_filters: Any,
-    ) -> List[MemoryItem]:
-        results: List[MemoryItem] = []
+    ) -> builtins.list[MemoryItem]:
+        results: list[MemoryItem] = []
         for item in self._items.values():
             if memory_types and item.memory_type not in memory_types:
                 continue
@@ -181,10 +182,10 @@ class InMemoryBackend(StorageBackend):
         memory_id: str,
         max_depth: int = 2,
         min_strength: float = 0.0,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """BFS spreading activation from the seed memory."""
-        visited: Dict[str, float] = {}
-        queue: List[tuple[str, float, int]] = [(memory_id, 1.0, 0)]
+        visited: dict[str, float] = {}
+        queue: list[tuple[str, float, int]] = [(memory_id, 1.0, 0)]
 
         while queue:
             current_id, activation, depth = queue.pop(0)
@@ -207,7 +208,7 @@ class InMemoryBackend(StorageBackend):
 
     # ── Forgetting ───────────────────────────────────────────────
 
-    async def get_decaying(self, threshold: float = 0.3, limit: int = 100) -> List[MemoryItem]:
+    async def get_decaying(self, threshold: float = 0.3, limit: int = 100) -> builtins.list[MemoryItem]:
         decaying = []
         for item in self._items.values():
             if item.retrieval_probability() < threshold:
@@ -217,12 +218,12 @@ class InMemoryBackend(StorageBackend):
 
     # ── Stats ────────────────────────────────────────────────────
 
-    async def stats(self) -> Dict[str, Any]:
+    async def stats(self) -> dict[str, Any]:
         if not self._items:
             count_by_type = {t.value: 0 for t in MemoryType}
             return {"total": 0, **count_by_type, "avg_importance": 0.0}
 
-        count_by_type: Dict[str, int] = {t.value: 0 for t in MemoryType}
+        count_by_type: dict[str, int] = {t.value: 0 for t in MemoryType}
         total_importance = 0.0
         for item in self._items.values():
             count_by_type[item.memory_type.value] = count_by_type.get(item.memory_type.value, 0) + 1

@@ -11,13 +11,12 @@ Where weights are configurable per query.
 from __future__ import annotations
 
 import math
-from typing import Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 from memore.memory.item import MemoryItem
 
-
 # Type alias for embedding similarity function
-SimilarityFn = Callable[[MemoryItem, Optional[str], Optional[List[float]]], float]
+SimilarityFn = Callable[[MemoryItem, str | None, list[float] | None], float]
 
 
 class HybridRanker:
@@ -50,12 +49,12 @@ class HybridRanker:
 
     def rank(
         self,
-        items: List[MemoryItem],
-        query: Optional[str] = None,
-        query_embedding: Optional[List[float]] = None,
-        activation_scores: Optional[Dict[str, float]] = None,
-        mood_congruent: Optional[Tuple[float, float]] = None,
-    ) -> List[Tuple[MemoryItem, float]]:
+        items: list[MemoryItem],
+        query: str | None = None,
+        query_embedding: list[float] | None = None,
+        activation_scores: dict[str, float] | None = None,
+        mood_congruent: tuple[float, float] | None = None,
+    ) -> list[tuple[MemoryItem, float]]:
         """Rank items by composite relevance score.
 
         Args:
@@ -69,7 +68,7 @@ class HybridRanker:
         Returns:
             Items sorted by descending relevance, each with its score.
         """
-        scored: List[Tuple[MemoryItem, float]] = []
+        scored: list[tuple[MemoryItem, float]] = []
         for item in items:
             score = self._compute_score(
                 item, query, query_embedding, activation_scores, mood_congruent
@@ -82,10 +81,10 @@ class HybridRanker:
     def _compute_score(
         self,
         item: MemoryItem,
-        query: Optional[str] = None,
-        query_embedding: Optional[List[float]] = None,
-        activation_scores: Optional[Dict[str, float]] = None,
-        mood_congruent: Optional[Tuple[float, float]] = None,
+        query: str | None = None,
+        query_embedding: list[float] | None = None,
+        activation_scores: dict[str, float] | None = None,
+        mood_congruent: tuple[float, float] | None = None,
     ) -> float:
         """Compute composite relevance score for a single item."""
         score = 0.0
@@ -114,11 +113,11 @@ class HybridRanker:
         return score
 
 
-def _cosine_similarity(a: List[float], b: List[float]) -> float:
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
     """Compute cosine similarity between two vectors."""
     if not a or not b or len(a) != len(b):
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(y * y for y in b))
     if norm_a == 0 or norm_b == 0:

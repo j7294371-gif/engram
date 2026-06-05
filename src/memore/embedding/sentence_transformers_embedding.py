@@ -6,8 +6,6 @@ using models like all-MiniLM-L6-v2 (384-dim, fast, good quality).
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 from memore.embedding.base import EmbeddingProvider
 
 
@@ -36,16 +34,16 @@ class SentenceTransformerEmbedding(EmbeddingProvider):
         self._lazy_load()
         return self._model.get_sentence_embedding_dimension()
 
-    async def embed(self, text: str) -> List[float]:
+    async def embed(self, text: str) -> list[float]:
         self._lazy_load()
         return self._model.encode(text, normalize_embeddings=True).tolist()
 
-    async def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         self._lazy_load()
         embeddings = self._model.encode(texts, normalize_embeddings=True)
         return [emb.tolist() for emb in embeddings]
 
-    def sync_embed(self, text: str) -> List[float]:
+    def sync_embed(self, text: str) -> list[float]:
         """Synchronous version for use in synchronous code paths."""
         self._lazy_load()
         return self._model.encode(text, normalize_embeddings=True).tolist()

@@ -16,10 +16,10 @@ Core usage::
 
 from memore.agent_memory import AgentMemory
 from memore.config import Config
-from memore.memory.item import MemoryItem
-from memore.memory.enums import MemoryType, ConsolidationStage, RetrievalMode
 from memore.consolidation.sleep import ConsolidationReport
 from memore.emotion.tag import EmotionalTagger
+from memore.memory.enums import ConsolidationStage, MemoryType, RetrievalMode
+from memore.memory.item import MemoryItem
 
 __version__ = "0.1.0a1"
 __all__ = [

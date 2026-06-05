@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 import time
 from collections import OrderedDict
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
 from memore.memory.item import MemoryItem
 
@@ -30,7 +30,7 @@ class SensoryBuffer:
         self,
         capacity: int = 50,
         ttl_seconds: float = 30.0,
-        on_expire: Optional[Callable[[MemoryItem], None]] = None,
+        on_expire: Callable[[MemoryItem], None] | None = None,
     ) -> None:
         self.capacity = max(1, capacity)
         self.ttl_seconds = max(0.1, ttl_seconds)
@@ -51,7 +51,7 @@ class SensoryBuffer:
                 self._buffer.popitem(last=False)
             self._buffer[item.id] = (item, time.monotonic())
 
-    def get(self, memory_id: str) -> Optional[MemoryItem]:
+    def get(self, memory_id: str) -> MemoryItem | None:
         """Retrieve an item by ID if it hasn't expired."""
         self._evict_expired()
         with self._lock:
@@ -60,10 +60,10 @@ class SensoryBuffer:
                 return entry[0]
             return None
 
-    def search(self, query: str, limit: int = 10) -> List[MemoryItem]:
+    def search(self, query: str, limit: int = 10) -> list[MemoryItem]:
         """Basic keyword search over current buffer contents."""
         self._evict_expired()
-        results: List[MemoryItem] = []
+        results: list[MemoryItem] = []
         query_lower = query.lower()
         with self._lock:
             for item, _ in self._buffer.values():
@@ -73,7 +73,7 @@ class SensoryBuffer:
                         break
         return results
 
-    def all(self) -> List[MemoryItem]:
+    def all(self) -> list[MemoryItem]:
         """Return all non-expired items."""
         self._evict_expired()
         with self._lock:
@@ -95,9 +95,9 @@ class SensoryBuffer:
     def _evict_expired(self) -> None:
         """Remove items that have exceeded the TTL."""
         now = time.monotonic()
-        expired_ids: List[str] = []
+        expired_ids: list[str] = []
         with self._lock:
-            for mid, (item, ts) in self._buffer.items():
+            for mid, (_item, ts) in self._buffer.items():
                 if now - ts > self.ttl_seconds:
                     expired_ids.append(mid)
             for mid in expired_ids:

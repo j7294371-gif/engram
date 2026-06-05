@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any
 
 
 @dataclass
@@ -16,12 +16,12 @@ class Config:
 
     # ── Backend ──────────────────────────────────────────────────
     backend: str = "in_memory"
-    backend_config: Dict[str, Any] = field(default_factory=dict)
+    backend_config: dict[str, Any] = field(default_factory=dict)
 
     # ── Embedding ────────────────────────────────────────────────
     embedding_model: str = "none"
     embedding_dim: int = 384
-    embedding_config: Dict[str, Any] = field(default_factory=dict)
+    embedding_config: dict[str, Any] = field(default_factory=dict)
 
     # ── Sensory Buffer ──────────────────────────────────────────
     sensory_buffer_size: int = 50

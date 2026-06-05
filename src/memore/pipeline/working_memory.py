@@ -9,7 +9,7 @@ determine their prominence in the current context.
 from __future__ import annotations
 
 import threading
-from typing import Callable, Dict, List, Optional
+from collections.abc import Callable
 
 from memore.memory.item import MemoryItem
 
@@ -28,16 +28,16 @@ class WorkingMemory:
     def __init__(
         self,
         capacity: int = 7,
-        on_evict: Optional[Callable[[MemoryItem], None]] = None,
+        on_evict: Callable[[MemoryItem], None] | None = None,
     ) -> None:
         self.capacity = max(1, capacity)
         self._on_evict = on_evict
-        self._items: Dict[str, MemoryItem] = {}
+        self._items: dict[str, MemoryItem] = {}
         self._lock = threading.Lock()
 
     # ── Public API ───────────────────────────────────────────────
 
-    def add(self, item: MemoryItem, attention_weight: Optional[float] = None) -> None:
+    def add(self, item: MemoryItem, attention_weight: float | None = None) -> None:
         """Add an item to working memory.
 
         If the item already exists, update it and boost attention.
@@ -68,7 +68,7 @@ class WorkingMemory:
 
             self._items[item.id] = item
 
-    def get(self, memory_id: str) -> Optional[MemoryItem]:
+    def get(self, memory_id: str) -> MemoryItem | None:
         """Retrieve an item and boost its attention."""
         with self._lock:
             item = self._items.get(memory_id)
@@ -77,12 +77,12 @@ class WorkingMemory:
                 item.touch()
             return item
 
-    def remove(self, memory_id: str) -> Optional[MemoryItem]:
+    def remove(self, memory_id: str) -> MemoryItem | None:
         """Explicitly remove an item from working memory."""
         with self._lock:
             return self._items.pop(memory_id, None)
 
-    def get_context(self, window_size: int = 7) -> List[MemoryItem]:
+    def get_context(self, window_size: int = 7) -> list[MemoryItem]:
         """Return items sorted by attention weight (highest first).
 
         Args:
@@ -101,7 +101,6 @@ class WorkingMemory:
 
         Convenience method for the current task's focal point.
         """
-        from datetime import datetime, timezone
         from memore.memory.enums import MemoryType
 
         item = MemoryItem(
@@ -136,7 +135,7 @@ class WorkingMemory:
 
     # ── Internal ─────────────────────────────────────────────────
 
-    def _evict_lowest(self) -> Optional[MemoryItem]:
+    def _evict_lowest(self) -> MemoryItem | None:
         """Evict the item with the lowest attention weight."""
         if not self._items:
             return None

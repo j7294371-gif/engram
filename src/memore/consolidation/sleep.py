@@ -10,12 +10,10 @@ Mimics the biological sleep cycle where memories are:
 
 from __future__ import annotations
 
-import hashlib
-import math
+import contextlib
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Set
 
 from memore.memory.enums import ConsolidationStage, MemoryType
 from memore.memory.item import MemoryItem
@@ -35,7 +33,7 @@ class ConsolidationReport:
     purged: int = 0              # Archived memories permanently deleted
     compressed: int = 0          # Long content truncated
     duration_ms: float = 0.0     # Wall-clock time
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
     def __str__(self) -> str:
         parts = [
@@ -78,7 +76,7 @@ class SleepConsolidation:
 
     async def run(
         self,
-        working_items: Optional[List[MemoryItem]] = None,
+        working_items: list[MemoryItem] | None = None,
     ) -> ConsolidationReport:
         """Run the full consolidation cycle.
 
@@ -125,7 +123,7 @@ class SleepConsolidation:
 
     async def _stage1_promote_working(
         self,
-        working_items: List[MemoryItem],
+        working_items: list[MemoryItem],
         report: ConsolidationReport,
     ) -> None:
         """Promote high-importance working memory items to episodic."""
@@ -216,10 +214,8 @@ class SleepConsolidation:
                     for m in members:
                         if m.consolidation_stage == ConsolidationStage.RAW:
                             m.consolidation_stage = ConsolidationStage.SEMANTIC_EXTRACTED
-                            try:
+                            with contextlib.suppress(Exception):
                                 await self._backend.update(m)
-                            except Exception:
-                                pass
                 except Exception as e:
                     report.errors.append(f"abstract({topic}): {e}")
 
@@ -307,7 +303,7 @@ class SleepConsolidation:
                 sort_desc=True,
             )
 
-            seen_hashes: Dict[str, List[MemoryItem]] = {}
+            seen_hashes: dict[str, list[MemoryItem]] = {}
             for item in items:
                 # Create a simple content fingerprint: first 50 chars + keywords
                 fingerprint = item.content[:50].lower().strip()
@@ -349,7 +345,7 @@ class SleepConsolidation:
                 sort_by="last_accessed_at",
                 sort_desc=False,
             )
-            from datetime import datetime, timezone, timedelta
+            from datetime import datetime, timedelta, timezone
             cutoff = datetime.now(timezone.utc) - timedelta(days=7)
 
             for item in archived:
@@ -406,13 +402,13 @@ class SleepConsolidation:
 
     # ── Helper methods ──────────────────────────────────────────
 
-    def _cluster_by_topic(self, items: List[MemoryItem]) -> Dict[str, List[MemoryItem]]:
+    def _cluster_by_topic(self, items: list[MemoryItem]) -> dict[str, list[MemoryItem]]:
         """Simple keyword-overlap clustering.
 
         Groups items that share significant keyword overlap.
         Returns a dict of {topic_keyword: [items]}.
         """
-        clusters: Dict[str, List[MemoryItem]] = {}
+        clusters: dict[str, list[MemoryItem]] = {}
         for item in items:
             # Extract meaningful keywords (words > 4 chars)
             words = set(
@@ -430,18 +426,18 @@ class SleepConsolidation:
 
         return clusters
 
-    def _common_tags(self, items: List[MemoryItem]) -> Set[str]:
+    def _common_tags(self, items: list[MemoryItem]) -> set[str]:
         """Find tags common to a majority of items."""
         if not items:
             return set()
-        tag_counts: Dict[str, int] = {}
+        tag_counts: dict[str, int] = {}
         for item in items:
             for tag in item.tags:
                 tag_counts[tag] = tag_counts.get(tag, 0) + 1
         threshold = len(items) // 2
         return {tag for tag, count in tag_counts.items() if count >= threshold}
 
-    def _synthesize_abstraction(self, topic: str, members: List[MemoryItem]) -> str:
+    def _synthesize_abstraction(self, topic: str, members: list[MemoryItem]) -> str:
         """Synthesize an abstracted semantic fact from episodic memories.
 
         Creates a concise, generalized statement about the topic
@@ -471,16 +467,16 @@ class SleepConsolidation:
         )
 
     def _detect_procedural_patterns(
-        self, items: List[MemoryItem]
-    ) -> Dict[str, List[MemoryItem]]:
+        self, items: list[MemoryItem]
+    ) -> dict[str, list[MemoryItem]]:
         """Detect repeated action patterns across episodic memories.
 
         Looks for sequences like "X then Y" or repeated verb patterns.
         """
-        patterns: Dict[str, List[MemoryItem]] = {}
+        patterns: dict[str, list[MemoryItem]] = {}
 
         # Simple approach: find common phrases across items
-        phrase_map: Dict[str, List[MemoryItem]] = {}
+        phrase_map: dict[str, list[MemoryItem]] = {}
         for item in items:
             words = item.content.lower().split()
             # Extract 2-3 word phrases

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import builtins
 from abc import ABC, abstractmethod
-from typing import Any, Collection, Dict, List, Optional
+from collections.abc import Collection
+from typing import Any
 
-from memore.memory.item import MemoryItem
 from memore.memory.enums import MemoryType
+from memore.memory.item import MemoryItem
 
 
 class StorageBackend(ABC):
@@ -37,11 +39,11 @@ class StorageBackend(ABC):
         """
 
     @abstractmethod
-    async def batch_store(self, items: List[MemoryItem]) -> None:
+    async def batch_store(self, items: builtins.list[MemoryItem]) -> None:
         """Optimized bulk insert of multiple items."""
 
     @abstractmethod
-    async def get(self, memory_id: str) -> Optional[MemoryItem]:
+    async def get(self, memory_id: str) -> MemoryItem | None:
         """Retrieve a single memory item by ID.
 
         Returns ``None`` if not found.
@@ -64,13 +66,13 @@ class StorageBackend(ABC):
     async def search(
         self,
         query: str,
-        query_embedding: Optional[List[float]] = None,
-        memory_types: Optional[Collection[MemoryType]] = None,
+        query_embedding: builtins.list[float] | None = None,
+        memory_types: Collection[MemoryType] | None = None,
         limit: int = 20,
         threshold: float = 0.0,
         include_archived: bool = False,
         **metadata_filters: Any,
-    ) -> List[MemoryItem]:
+    ) -> builtins.list[MemoryItem]:
         """Multi-modal search combining semantic and keyword matching.
 
         Each backend interprets ``query_embedding`` differently:
@@ -80,7 +82,7 @@ class StorageBackend(ABC):
     @abstractmethod
     async def list(
         self,
-        memory_types: Optional[Collection[MemoryType]] = None,
+        memory_types: Collection[MemoryType] | None = None,
         importance_min: float = 0.0,
         limit: int = 100,
         offset: int = 0,
@@ -88,7 +90,7 @@ class StorageBackend(ABC):
         sort_desc: bool = True,
         include_archived: bool = False,
         **metadata_filters: Any,
-    ) -> List[MemoryItem]:
+    ) -> builtins.list[MemoryItem]:
         """Structured listing with filters, pagination, and sorting."""
 
     # ── Associations (Graph) ─────────────────────────────────────
@@ -112,7 +114,7 @@ class StorageBackend(ABC):
         memory_id: str,
         max_depth: int = 2,
         min_strength: float = 0.0,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """BFS traversal of the association graph.
 
         Returns ``{memory_id: activation_strength}`` for all reachable
@@ -126,13 +128,13 @@ class StorageBackend(ABC):
         self,
         threshold: float = 0.3,
         limit: int = 100,
-    ) -> List[MemoryItem]:
+    ) -> builtins.list[MemoryItem]:
         """Return memories whose retrieval probability is below threshold."""
 
     # ─── Stats & admin ───────────────────────────────────────────
 
     @abstractmethod
-    async def stats(self) -> Dict[str, Any]:
+    async def stats(self) -> dict[str, Any]:
         """Return system statistics (counts per type, averages, etc.)."""
 
     @abstractmethod

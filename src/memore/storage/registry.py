@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Type
-
 from memore.exceptions import BackendNotFoundError
 from memore.storage.base import StorageBackend
 
-_registry: Dict[str, Type[StorageBackend]] = {}
+_registry: dict[str, type[StorageBackend]] = {}
 
 
-def register_backend(name: str, backend_cls: Type[StorageBackend]) -> None:
+def register_backend(name: str, backend_cls: type[StorageBackend]) -> None:
     """Register a storage backend class under a canonical name."""
     _registry[name] = backend_cls
 
 
-def get_backend(name: str) -> Type[StorageBackend]:
+def get_backend(name: str) -> type[StorageBackend]:
     """Look up a registered backend by name.
 
     Raises ``BackendNotFoundError`` if the name is unknown.
@@ -28,6 +26,6 @@ def get_backend(name: str) -> Type[StorageBackend]:
     return _registry[name]
 
 
-def list_backends() -> List[str]:
+def list_backends() -> list[str]:
     """Return the list of registered backend names."""
     return list(_registry)

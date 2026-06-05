@@ -6,7 +6,7 @@ traverse associations breadth-first with activation decay per hop.
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional
+from collections.abc import Callable
 
 
 class SpreadingActivation:
@@ -29,8 +29,8 @@ class SpreadingActivation:
     def activate(
         self,
         seed_id: str,
-        get_neighbors: Callable[[str], Dict[str, float]],
-    ) -> Dict[str, float]:
+        get_neighbors: Callable[[str], dict[str, float]],
+    ) -> dict[str, float]:
         """Run spreading activation from a seed node.
 
         Args:
@@ -41,8 +41,8 @@ class SpreadingActivation:
         Returns:
             Dict of {node_id: activation_strength}, excluding the seed.
         """
-        visited: Dict[str, float] = {}
-        queue: List[tuple[str, float, int]] = [(seed_id, 1.0, 0)]
+        visited: dict[str, float] = {}
+        queue: list[tuple[str, float, int]] = [(seed_id, 1.0, 0)]
 
         while queue:
             current_id, activation, depth = queue.pop(0)
@@ -68,14 +68,14 @@ class SpreadingActivation:
 
     def activate_multi(
         self,
-        seed_ids: List[str],
-        get_neighbors: Callable[[str], Dict[str, float]],
-    ) -> Dict[str, float]:
+        seed_ids: list[str],
+        get_neighbors: Callable[[str], dict[str, float]],
+    ) -> dict[str, float]:
         """Run spreading activation from multiple seed nodes.
 
         Activations from multiple seeds are summed (not maxed).
         """
-        combined: Dict[str, float] = {}
+        combined: dict[str, float] = {}
         for sid in seed_ids:
             result = self.activate(sid, get_neighbors)
             for node_id, activation in result.items():

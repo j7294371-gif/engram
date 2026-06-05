@@ -7,7 +7,6 @@ the ``OPENAI_API_KEY`` environment variable or passed directly.
 from __future__ import annotations
 
 import os
-from typing import List, Optional
 
 from memore.embedding.base import EmbeddingProvider
 from memore.exceptions import EmbeddingError
@@ -28,8 +27,8 @@ class OpenAIEmbedding(EmbeddingProvider):
     def __init__(
         self,
         model: str = "text-embedding-3-small",
-        api_key: Optional[str] = None,
-        dimensions: Optional[int] = None,
+        api_key: str | None = None,
+        dimensions: int | None = None,
     ) -> None:
         self._model = model
         self._api_key = api_key or os.environ.get("OPENAI_API_KEY")
@@ -40,7 +39,7 @@ class OpenAIEmbedding(EmbeddingProvider):
     def dimension(self) -> int:
         return self._dimensions or 1536
 
-    async def embed(self, text: str) -> List[float]:
+    async def embed(self, text: str) -> list[float]:
         client = self._get_client()
         kwargs = {"model": self._model, "input": text}
         if self._dimensions:
@@ -51,7 +50,7 @@ class OpenAIEmbedding(EmbeddingProvider):
         except Exception as e:
             raise EmbeddingError(f"OpenAI embedding failed: {e}") from e
 
-    async def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         client = self._get_client()
         kwargs = {"model": self._model, "input": texts}
         if self._dimensions:
@@ -64,7 +63,7 @@ class OpenAIEmbedding(EmbeddingProvider):
         except Exception as e:
             raise EmbeddingError(f"OpenAI batch embedding failed: {e}") from e
 
-    def sync_embed(self, text: str) -> List[float]:
+    def sync_embed(self, text: str) -> list[float]:
         """Synchronous fallback — uses openai's sync client."""
         import openai
         client = openai.OpenAI(api_key=self._api_key)

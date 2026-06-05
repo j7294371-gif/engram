@@ -13,13 +13,14 @@ Schema:
 
 from __future__ import annotations
 
+import builtins
 import json
-import math
 import sqlite3
 import threading
+from collections.abc import Collection, Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Any, Collection, Dict, Iterator, List, Optional, Set
+from typing import Any
 
 from memore.exceptions import DuplicateMemoryError, MemoryNotFoundError
 from memore.memory.enums import ConsolidationStage, MemoryType
@@ -96,7 +97,7 @@ class SQLiteBackend(StorageBackend):
                 self._insert_associations(cur, item.id, item.associations)
             return item.id
 
-    async def batch_store(self, items: List[MemoryItem]) -> None:
+    async def batch_store(self, items: builtins.list[MemoryItem]) -> None:
         with self._lock:
             with self._tx() as cur:
                 for item in items:
@@ -107,7 +108,7 @@ class SQLiteBackend(StorageBackend):
                     self._insert_tags(cur, item.id, item.tags)
                     self._insert_associations(cur, item.id, item.associations)
 
-    async def get(self, memory_id: str) -> Optional[MemoryItem]:
+    async def get(self, memory_id: str) -> MemoryItem | None:
         with self._lock:
             with self._tx() as cur:
                 cur.execute("SELECT * FROM memories WHERE id = ?", (memory_id,))
@@ -165,17 +166,17 @@ class SQLiteBackend(StorageBackend):
     async def search(
         self,
         query: str,
-        query_embedding: Optional[List[float]] = None,
-        memory_types: Optional[Collection[MemoryType]] = None,
+        query_embedding: builtins.list[float] | None = None,
+        memory_types: Collection[MemoryType] | None = None,
         limit: int = 20,
         threshold: float = 0.0,
         include_archived: bool = False,
         **metadata_filters: Any,
-    ) -> List[MemoryItem]:
+    ) -> builtins.list[MemoryItem]:
         with self._lock:
             with self._tx() as cur:
-                where_clauses: List[str] = []
-                params: List[Any] = []
+                where_clauses: list[str] = []
+                params: list[Any] = []
 
                 # Keyword search via LIKE
                 if query:
@@ -205,7 +206,7 @@ class SQLiteBackend(StorageBackend):
 
     async def list(
         self,
-        memory_types: Optional[Collection[MemoryType]] = None,
+        memory_types: Collection[MemoryType] | None = None,
         importance_min: float = 0.0,
         limit: int = 100,
         offset: int = 0,
@@ -213,13 +214,13 @@ class SQLiteBackend(StorageBackend):
         sort_desc: bool = True,
         include_archived: bool = False,
         **metadata_filters: Any,
-    ) -> List[MemoryItem]:
+    ) -> builtins.list[MemoryItem]:
         allowed_sorts = {"created_at", "last_accessed_at", "importance", "strength", "access_count"}
         if sort_by not in allowed_sorts:
             sort_by = "created_at"
 
-        where_clauses: List[str] = ["m.importance >= ?"]
-        params: List[Any] = [importance_min]
+        where_clauses: list[str] = ["m.importance >= ?"]
+        params: list[Any] = [importance_min]
 
         if memory_types:
             placeholders = ",".join("?" for _ in memory_types)
@@ -263,7 +264,7 @@ class SQLiteBackend(StorageBackend):
         memory_id: str,
         max_depth: int = 2,
         min_strength: float = 0.0,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         with self._lock:
             with self._tx() as cur:
                 # Use recursive CTE for BFS traversal
@@ -284,7 +285,7 @@ class SQLiteBackend(StorageBackend):
 
     # ── Forgetting ───────────────────────────────────────────────
 
-    async def get_decaying(self, threshold: float = 0.3, limit: int = 100) -> List[MemoryItem]:
+    async def get_decaying(self, threshold: float = 0.3, limit: int = 100) -> builtins.list[MemoryItem]:
         """Return memories with low retrieval probability.
 
         Retrieval probability P = strength * exp(-decay_rate * hours_since_rehearsal)
@@ -307,7 +308,7 @@ class SQLiteBackend(StorageBackend):
 
     # ── Stats ────────────────────────────────────────────────────
 
-    async def stats(self) -> Dict[str, Any]:
+    async def stats(self) -> dict[str, Any]:
         with self._lock:
             with self._tx() as cur:
                 cur.execute("SELECT COUNT(*) as total FROM memories")
@@ -365,7 +366,7 @@ class SQLiteBackend(StorageBackend):
             ),
         )
 
-    def _insert_tags(self, cur: sqlite3.Cursor, memory_id: str, tags: List[str]) -> None:
+    def _insert_tags(self, cur: sqlite3.Cursor, memory_id: str, tags: builtins.list[str]) -> None:
         for tag in tags:
             cur.execute(
                 "INSERT OR IGNORE INTO tags (memory_id, tag) VALUES (?, ?)",
@@ -373,7 +374,7 @@ class SQLiteBackend(StorageBackend):
             )
 
     def _insert_associations(
-        self, cur: sqlite3.Cursor, memory_id: str, associations: Dict[str, float]
+        self, cur: sqlite3.Cursor, memory_id: str, associations: dict[str, float]
     ) -> None:
         now = _ts(datetime.now(timezone.utc))
         for target_id, strength in associations.items():
@@ -481,7 +482,7 @@ CREATE INDEX IF NOT EXISTS idx_associations_target ON associations(target_id);
 """
 
 
-def _ts(dt: Optional[datetime]) -> float:
+def _ts(dt: datetime | None) -> float:
     """Convert datetime to Unix timestamp."""
     if dt is None:
         return 0.0

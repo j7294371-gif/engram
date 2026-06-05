@@ -10,11 +10,9 @@ Categorizes into basic emotion families for higher-level reasoning.
 from __future__ import annotations
 
 import math
-from typing import Dict, Optional, Tuple
-
 
 # Emotion categories defined by (valence, arousal) centroids
-EMOTION_CATEGORIES: Dict[str, Tuple[float, float]] = {
+EMOTION_CATEGORIES: dict[str, tuple[float, float]] = {
     "ecstasy": (0.9, 0.9),
     "joy": (0.8, 0.6),
     "serenity": (0.7, 0.2),

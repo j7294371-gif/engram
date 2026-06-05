@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
 
 class EmbeddingProvider(ABC):
@@ -20,14 +19,14 @@ class EmbeddingProvider(ABC):
         """Return the embedding vector dimension."""
 
     @abstractmethod
-    async def embed(self, text: str) -> List[float]:
+    async def embed(self, text: str) -> list[float]:
         """Generate an embedding vector for the given text."""
 
     @abstractmethod
-    async def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Generate embedding vectors for a batch of texts."""
 
-    def sync_embed(self, text: str) -> List[float]:
+    def sync_embed(self, text: str) -> list[float]:
         """Synchronous embedding fallback.
 
         Default implementation runs embed() in an event loop.
